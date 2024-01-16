@@ -1,0 +1,4 @@
+* Original paper
+Grigoratou, M., Monteiro, F. M., Schmidt, D. N., Wilson, J. D., Ward, B. A., and Ridgwell, A.: A trait-based modelling approach to planktonic foraminifera ecology, Biogeosciences, 16, 1469–1492, https://doi.org/10.5194/bg-16-1469-2019, 2019.
+
+Forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosciences_SM
