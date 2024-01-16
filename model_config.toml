@@ -1,0 +1,46 @@
+[Hyper_Parameters]
+### Temperature- Arrenhius-like equation (equation A6 from Appendix Ward et al 2012) ###
+R = 0.05  # temperature depedence, {no units}
+T_ref = 293.15  # Reference Temperature at which gama_T=1, 20oC {Kelvin}
+
+### Size-Dependent Parameters ###
+Qmax_a = 0.25
+Qmax_b = -0.13
+Qmin_a = 0.07
+Qmin_b = -0.17
+Gcmax_a = 21.9
+Gcmax_b = -0.16
+k_no3_a = 0.17
+k_no3_b = 0.27
+Vmax_a = 0.51
+Vmax_b = -0.27
+pcmax_b = -0.15
+mz_a = 0.05
+mz_b = -0.16
+
+### Size-Indenpendent Parameters ###
+kcprey=0.1509 #C TO N CONVERSION (from Ward et al. 2012)
+gamma_l = 0.1 #light limitation (from Ward et al. 2014)
+
+### other plankton parameters (from Ward et al., 2012;2014) ###
+mp = 0.02  # plankton mortality {day^-1}
+lamdaprey = -1.0  # prey refure parameter {no units}
+thita_opt = 10.0  # optimum predator:prey ratio {no units}
+lamda = 0.7  # maximum assimilation efficiency
+sigma_z = 0.5 # standard deviation of zooplankton prey preference
+n_dt = 2.0 # number of timesteps: redundant currently
+K = 0.01  # Chemostat mixing rate {day^-1}
+
+### planktonic foraminifera's parameters ###
+sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
+
+## simulation-specific configuration
+nday = 3000 ## running time
+save_freq = 100 ## save frequency
+dt = 0.01 ## time step
+init_B = 1e-4 # initial biomass concentrations
+
+[Plankton]
+n_phytoplankton = 20
+n_zooplankton = 20
+n_foram = 20
