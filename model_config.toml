@@ -35,8 +35,8 @@ K = 0.01  # Chemostat mixing rate {day^-1}
 sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
 
 ## simulation-specific configuration
-nday = 5000 ## running time
-save_freq = 100 ## save frequency
+nday = 10000 ## running time
+save_freq = 500 ## save frequency
 dt = 1.0 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration

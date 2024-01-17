@@ -1,7 +1,6 @@
 import numpy as np
-import time
 from scipy.integrate import odeint
-
+import matplotlib.pyplot as plt
 
 class ODE:
     def run(self):
@@ -31,6 +30,7 @@ class ODE:
     def dydt(self, y, t):
         "describe the dynamic of the system"
 
+        ## state variable
         N = np.zeros([1, 1])
         B = np.zeros([1, self.n_pft])
         
@@ -39,6 +39,7 @@ class ODE:
         B[0, :] = y[1:self.n_pft + 1]
         Nuptake = np.zeros([1, self.n_pft])
 
+        ## array for the rate of change
         dBdt = np.zeros([1, self.n_pft])
         dNdt = np.zeros([1, 1])
         graze = 0.0
@@ -82,7 +83,7 @@ class ODE:
 
                     for jprey in range(0, self.n_phytoplankton):  # loop over phytoplankton prey
 
-                        graze = self.g[0, p] * self.gamma_T * (self.f[jprey, p] * B[0, jprey] / (F + self.kcprey)) * PR
+                        graze = self.Gmax[0, p] * self.gamma_T * (self.f[jprey, p] * B[0, jprey] / (F + self.kcprey)) * PR
 
                         dBdt[0, p] = dBdt[0, p] + (graze * B[0, p] * self.lamda)
 
@@ -100,3 +101,27 @@ class ODE:
             dNdt[0] = 1e-99
             Nuptake = 0.0
         return np.append(dNdt, dBdt)
+
+    def plot(self):
+        ### plot biomass, nutrient, size distribution
+        fig, axs = plt.subplots(1, 3, figsize=(12, 4), sharex=True, sharey=False)
+
+        ## Set shared x axis
+        fig.supxlabel('Time (days)')
+
+        axs[0].plot(self.output_t, self.output_B[:,0:self.n_phytoplankton], 'r')
+        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton],'b')
+        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton+self.n_zooplankton:self.n_pft],'black')
+        axs[0].set_title('Biomass')
+        axs[0].set_ylabel('Biomass (mmol N m$^{-3}$)')
+
+        axs[1].plot(self.output_t, self.output_N, color='black', linewidth=2)
+        axs[1].set_title('Nutrient')
+        axs[1].set_ylabel('Nutrient (mmol N m$^{-3}$)')
+
+        axs[2].plot(self.output_t, self.output_size, color='black', linewidth=2)
+        axs[2].set_title('Community Size Mean')
+        axs[2].set_ylabel('Size (μm)')
+
+        plt.show()
+        return axs

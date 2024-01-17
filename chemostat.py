@@ -4,13 +4,7 @@ from ode import ODE
 
 class Chemostat(ODE):
     """
-    A theoretical size-based model of plankton in a chemostat
-
-    Running the model:
-    1. Create an instance of the model
-    2. Set the model hyper-parameters
-    3. Set the plankton parameters
-    4. run the model and get result
+    A theoretical size-based model of plankton in a chemostat, adapted from Grigoratou et al. 2019 BG
     """
     
     def __init__(self,temp,nutrient):  
@@ -138,14 +132,13 @@ class Chemostat(ODE):
                 self.gf[0,n] = 1.0
                 
             elif self.PFT_Z[n]:
-                self.g[0,n]=self.Gmax[0,n]
                 self.kappa[0,n]=self.K
                 self.gf[0,n] = 1.0
                 self.mz[0,n] = self.mp 
                 self.m[0,n]= self.mz[0,n]# fixed grazing rate
 
             elif self.PFT_F[n]:
-                self.g[0,n]=self.Gmax[0,n] *0.5 # * diameter value (ranges from 0 to 1 for energetic loss)
+                self.Gmax[0,n]=self.Gmax[0,n] *0.5 # * diameter value (ranges from 0 to 1 for energetic loss)
                 self.gf[0,n] = 1.0 # grazing pressure on forams, ranges from 0 to 1 for different predation pressure on forams
                 self.kappa[0,n]=self.K
                 self.mz[0,n] = self.mp * 0.81# * diameter value (ranges from 0 to 1 for protection from background mortality)
