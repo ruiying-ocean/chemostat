@@ -34,9 +34,20 @@ class Chemostat(ODE):
         size_ratio = size_pred / size_prey
         return np.exp(-(((np.log(size_ratio / thita_opt)) ** 2) * ((2 * sigma ** 2) ** -1)))
 
-    def _cal_pcmax_a(self, diameter, a=0.4428, b=0.122):
-        "calculate pcmax_a, fit Grigoratou example using sigmoid function"
-        return a/(np.exp(-1*diameter)+b)
+    def _cal_pcmax_a(self, diameter):
+        # < 0.8 => 1.0
+        # < 1.8 => 1.4
+        # < 5.6 => 2.1
+        # > 5.6 => 3.8
+        if diameter < 0.8:
+            return 1.0
+        elif diameter < 1.8 and diameter >= 0.8:
+            return 1.4
+        elif diameter < 5.6 and diameter >= 1.8:
+            return 2.1
+        elif diameter >= 5.6:
+            return 3.8
+
 
     def _cal_mumax(self, muinf, Vmax, Qmax, Qmin, deltaQ):
         "unit: day-1"
@@ -128,7 +139,8 @@ class Chemostat(ODE):
         for j in range(0, self.n_pft):
             self.Vol[0,j] = 4.0 / 3.0 * np.pi * (self.diameter[0,j]*0.5)**3  
 
-        self.pcmax_a[0, 0:self.n_phytoplankton] = self._cal_pcmax_a(self.get_diameter(self.n_phytoplankton, "phytoplankton"))
+        cal_pcmax_a = np.vectorize(self._cal_pcmax_a)
+        self.pcmax_a[0, 0:self.n_phytoplankton] = cal_pcmax_a(self.get_diameter(self.n_phytoplankton, "phytoplankton"))
         
         ## assign values for all plankton
         for n in range(0,self.n_pft):
