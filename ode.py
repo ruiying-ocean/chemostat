@@ -110,8 +110,8 @@ class ODE:
         ## Set shared x axis
         fig.supxlabel('Time (days)')
 
-        axs[0].plot(self.output_t, self.output_B[:,0:self.n_phytoplankton], 'r')
-        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton],'b')
+        axs[0].plot(self.output_t, self.output_B[:,0:self.n_phytoplankton], 'red')
+        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton],'blue')
         axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton+self.n_zooplankton:self.n_pft],'black')
         axs[0].set_title('Biomass')
         axs[0].set_ylabel('Biomass (mmol N m$^{-3}$)')
