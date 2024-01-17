@@ -8,10 +8,10 @@ Qmax_a = 0.25
 Qmax_b = -0.13
 Qmin_a = 0.07
 Qmin_b = -0.17
-Gcmax_a = 21.9
-Gcmax_b = -0.16
-k_no3_a = 0.17
-k_no3_b = 0.27
+Gmax_a = 21.9
+Gmax_b = -0.16
+kNO3_a = 0.17
+kNO3_b = 0.27
 Vmax_a = 0.51
 Vmax_b = -0.27
 pcmax_b = -0.15
@@ -29,15 +29,15 @@ thita_opt = 10.0  # optimum predator:prey ratio {no units}
 lamda = 0.7  # maximum assimilation efficiency
 sigma_z = 0.5 # standard deviation of zooplankton prey preference
 n_dt = 2.0 # number of timesteps: redundant currently
-K = 0.01  # Chemostat mixing rate {day^-1}
+K = 0.01  # dilution rate k for plankton washed out and nutrient supply in
 
 ### planktonic foraminifera's parameters ###
 sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
 
 ## simulation-specific configuration
-nday = 10000 ## running time
+nday = 5000 ## running time
 save_freq = 500 ## save frequency
-dt = 1.0 ## time step
+dt = 0.1 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
 

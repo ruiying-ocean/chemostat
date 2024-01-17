@@ -4,15 +4,16 @@ import matplotlib.pyplot as plt
 
 class ODE:
     def run(self):
-        ## time
+        
+        ## set time, init condition
         t = np.linspace(1.0, self.nday, self.save_freq)
-        ## init condition
         y0 = np.append(self.N0, self.B0)
 
         ### call solver ###
-        ## dydt is the function describing the system, in the form of f(y,t);
+        ## diff_eqn is the function describing the system, in the form of f(y,t);
         ## y could be multi-dimension, but t must be 1-dimension
-        sol = odeint(self.dydt, y0, t, full_output=False, rtol=1e-3, atol=1e-9, hmax=28.0, h0=0.01, hmin=0.001)
+        print('>>> running ODE solver')
+        sol = odeint(self.diff_eqn, y0, t, full_output=False, rtol=1e-3, atol=1e-9, hmax=28.0, h0=0.01, hmin=0.001)
 
         # return solver output to output arrays
         self.output_t = t
@@ -27,8 +28,8 @@ class ODE:
         ## calculate weighted mean diameter
         self.output_size = np.sum(self.output_prop * self.diameter, axis=1)
 
-    def dydt(self, y, t):
-        "describe the dynamic of the system"
+    def diff_eqn(self, y, t):
+        "differential equation"
 
         ## state variable
         N = np.zeros([1, 1])
@@ -50,7 +51,7 @@ class ODE:
             if self.PFT_P[p]:
                 Nuptake[0, p] = self.gamma_l * self.gamma_T * self.mumax[0, p] * N / (self.kN[0, p] + N) * B[0, p]
             elif self.PFT_Z[p]:
-                F = np.sum(self.f[:, p] * B)  # availability of prey
+                F = np.sum(self.f[:, p] * B)  # availability of prey = biomass * palatability
                 if F > 0.0:
                     PR = 1.0 - np.exp(self.lamdaprey * F)
 
