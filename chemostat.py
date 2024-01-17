@@ -15,7 +15,7 @@ class Chemostat(ODE):
     
     def __init__(self,temp,nutrient):  
         self.T = temp+273.15   # ambient water temperature in Kelvin
-        self.N0 = nutrient  # Source Nutrients initial Concentration {mmolNm^-3}
+        self.source_N = nutrient  # Source Nutrients Concentration {mmolNm^-3} supplying to the system
 
     def get_diameter(self, n, plankton):
         """
@@ -97,8 +97,8 @@ class Chemostat(ODE):
         self.Vol = np.zeros([1,self.n_pft])  # biovolume
         self.f = np.zeros([self.n_pft, self.n_pft]) # Grazing matrix
 
-        self.N_init = np.ones([1, 1]) * 1e-4  # nutrient array at t
-        self.B_init = np.ones([1, self.n_pft]) * self.init_B  # biomass array at t
+        self.N0 = np.ones([1, 1]) * self.init_N  # nutrient array at t0
+        self.B0 = np.ones([1, self.n_pft]) * self.init_B  # biomass array at t0
 
         self.output_t = np.zeros([self.save_freq, 1])
         self.output_B = np.zeros([self.save_freq, self.n_pft])  # output array for plankton biomass through time

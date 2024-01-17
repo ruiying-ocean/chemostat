@@ -8,7 +8,7 @@ class ODE:
         ## time
         t = np.linspace(1.0, self.nday, self.save_freq)
         ## init condition
-        y0 = np.append(self.N_init, self.B_init)
+        y0 = np.append(self.N0, self.B0)
 
         ### call solver ###
         ## dydt is the function describing the system, in the form of f(y,t);
@@ -29,9 +29,11 @@ class ODE:
         self.output_size = np.sum(self.output_prop * self.diameter, axis=1)
 
     def dydt(self, y, t):
+        "describe the dynamic of the system"
 
         N = np.zeros([1, 1])
         B = np.zeros([1, self.n_pft])
+        
         ## initial condition
         N[0, 0] = y[0]
         B[0, :] = y[1:self.n_pft + 1]
@@ -74,6 +76,7 @@ class ODE:
 
             elif self.PFT_F[jprey]:
                 F = np.sum(self.f[:, p] * B)  # availability of prey
+                PR = 1.0 #no prey refuge
                 if F > 0.0:
                     PR = 1.0 - np.exp(self.lamdaprey * F)
 
@@ -88,7 +91,7 @@ class ODE:
                         self.graze_dt[jprey, p] = graze
 
         dBdt = dBdt + Nuptake - (B * self.m) - (self.kappa * B)
-        dNdt = self.K * (self.N0 - N) - np.sum(Nuptake)
+        dNdt = self.K * (self.source_N - N) - np.sum(Nuptake)
         ##non negative values
         if dBdt[0, p] < 1e-99:
             dBdt[0, p] = 1e-99
