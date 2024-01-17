@@ -115,7 +115,6 @@ class Chemostat(ODE):
         self.kappa=np.ones([1,self.n_pft]) * self.K
         self.mz=np.zeros([1,self.n_pft])
         self.m=np.zeros([1,self.n_pft])
-        self.gf = np.ones([1, self.n_pft])  # grazing pressure on planktonic foraminifera
         self.Vol = np.zeros([1,self.n_pft])  # biovolume
         self.f = np.zeros([self.n_pft, self.n_pft]) # Grazing matrix
 

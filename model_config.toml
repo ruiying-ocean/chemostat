@@ -37,11 +37,11 @@ sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
 ## simulation-specific configuration
 nday = 5000 ## running time
 save_freq = 500 ## save frequency
-dt = 0.1 ## time step
+dt = 1 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
 
 [Plankton]
-n_phytoplankton = 15
-n_zooplankton = 15
+n_phytoplankton = 25
+n_zooplankton = 25
 n_foram = 15

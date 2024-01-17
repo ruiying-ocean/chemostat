@@ -67,8 +67,7 @@ class ODE:
                             print('wrong value, pref>1.0')
 
                         graze = self.g[0, p] * self.gamma_T * (
-                                    self.f[jprey, p] * B[0, jprey] / (F + self.kcprey)) * PR * pref * self.gf[
-                                    0, jprey]  # Holling Type II
+                                    self.f[jprey, p] * B[0, jprey] / (F + self.kcprey)) * PR * pref  # Holling Type II
 
                         dBdt[0, p] = dBdt[0, p] + (graze * B[0, p] * self.lamda)
 
