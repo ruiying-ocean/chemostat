@@ -17,14 +17,16 @@ class ODE:
 
         # return solver output to output arrays
         self.output_t = t
+        ## first index is nutrient
         self.output_N[:, 0] = sol[:, 0]
-        self.output_B[:, :] = sol[:, 1:self.n_pft + 1]
+        ## the others are plankton
+        self.output_B[:, :] = sol[:, 1:self.n_pft+1]
 
         ## weighted mean diameter
         ## calculate biomass proportion of each PFT
-        biomass_prop = self.output_B / np.sum(self.output_B, axis=1)[:, None]
+        self.output_prop = self.output_B / np.sum(self.output_B, axis=1)[:, None]
         ## calculate weighted mean diameter
-        self.output_size = np.sum(biomass_prop * self.diameter, axis=1)
+        self.output_size = np.sum(self.output_prop * self.diameter, axis=1)
 
     def dydt(self, y, t):
 

@@ -41,6 +41,10 @@ class Chemostat(ODE):
         size_ratio = size_pred / size_prey
         return np.exp(-(((np.log(size_ratio / thita_opt)) ** 2) * ((2 * sigma ** 2) ** -1)))
 
+    def _cal_pcmax_a(self, diameter, a=0.4428, b=0.122):
+        "dynamically calculate pcmax_a, fit Grigoratou example using sigmoid function"
+        return a/(np.exp(-1*diameter)+b)
+
     def load_config(self, file):
         with open(file, "rb") as f:
             data = tomllib.load(f)
@@ -111,8 +115,8 @@ class Chemostat(ODE):
         for j in range(0, self.n_pft):
             self.Vol[0,j] = 4.0 / 3.0 * np.pi * (self.diameter[0,j]*0.5)**3  
 
-        self.pcmax_a[0, 0:25] = [1.0, 1.0, 1.4, 1.4, 1.4, 2.1, 2.1, 2.1, 2.1, 2.1, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8,
-                                 3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8]
+        self.pcmax_a[0, 0:self.n_phytoplankton] = self._cal_pcmax_a(self.get_diameter(self.n_phytoplankton, "phytoplankton"))
+        
         ## assign values
         for n in range(0,self.n_pft):
             ## Quota
@@ -141,10 +145,10 @@ class Chemostat(ODE):
                 self.m[0,n]= self.mz[0,n]# fixed grazing rate
 
             elif self.PFT_F[n]:
-                self.g[0,n]=self.Gmax[0,n] *0.5 # * x value (ranges from 0 to 1 for energetic loss)
+                self.g[0,n]=self.Gmax[0,n] *0.5 # * diameter value (ranges from 0 to 1 for energetic loss)
                 self.gf[0,n] = 1.0 # grazing pressure on forams, ranges from 0 to 1 for different predation pressure on forams
                 self.kappa[0,n]=self.K
-                self.mz[0,n] = self.mp * 0.81# * x value (ranges from 0 to 1 for protection from background mortality)
+                self.mz[0,n] = self.mp * 0.81# * diameter value (ranges from 0 to 1 for protection from background mortality)
                 self.m[0,n]= self.mz[0,n]
                 
         # prey preference

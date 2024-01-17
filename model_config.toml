@@ -41,6 +41,6 @@ dt = 0.01 ## time step
 init_B = 1e-4 # initial biomass concentrations
 
 [Plankton]
-n_phytoplankton = 20
-n_zooplankton = 20
-n_foram = 20
+n_phytoplankton = 25
+n_zooplankton = 25
+n_foram = 25
