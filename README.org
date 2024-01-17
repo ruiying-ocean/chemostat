@@ -1,4 +1,14 @@
-* Original paper
+* About
+
+This is a project aiming to adapt the 0D foram model (Grigoratou et al. 2019) to include more foram group based on better coding structure.
+
+It's forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosciences_SM
+
+* References
+
 Grigoratou, M., Monteiro, F. M., Schmidt, D. N., Wilson, J. D., Ward, B. A., and Ridgwell, A.: A trait-based modelling approach to planktonic foraminifera ecology, Biogeosciences, 16, 1469–1492, https://doi.org/10.5194/bg-16-1469-2019, 2019.
 
-Forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosciences_SM
+Ward, B. A., Dutkiewicz, S., & Follows, M. J. (2014). Modelling spatial and temporal patterns in size-structured marine plankton communities: Top–down and bottom–up controls. Journal of Plankton Research, 36(1), https://doi.org/10/f5pg4b
+
+
+
