@@ -114,8 +114,7 @@ class Chemostat(ODE):
         self.Vmax = np.zeros([1,self.n_pft])
         self.kN = np.zeros([1,self.n_pft])
         self.Gmax=np.zeros([1,self.n_pft])
-        
-        self.g=np.zeros([1,self.n_pft])
+
         self.kappa=np.ones([1,self.n_pft]) * self.K
         self.mz=np.zeros([1,self.n_pft])
         self.m=np.zeros([1,self.n_pft])
@@ -161,13 +160,15 @@ class Chemostat(ODE):
                 self.mumax[0,n]= self._cal_mumax(self.pcmax[0,n],self.Vmax[0,n],self.Qmax[0,n], self.Qmin[0,n],self.deltaQ[0,n])
                 self.kN[0,n]= self._cal_kN(self.pcmax[0,n], self.kNO3[0,n],self.Vmax[0,n],self.Qmax[0,n],self.Qmin[0,n],self.deltaQ[0,n])
                 self.m[0,n]=self.mp
+                self.Gmax[0,n]=0
                 
             elif self.PFT_Z[n]:
                 self.m[0,n]= self._cal_allom_trait(self.mz_a,self.mz_b,self.Vol[0,n])
 
             elif self.PFT_F[n]:
                 self.Gmax[0,n]=self.Gmax[0,n] *0.5
-                self.m[0,n] = self._cal_allom_trait(self.mz_a,self.mz_b,self.Vol[0,n]) * 0.81
+                #self.m[0,n] = self._cal_allom_trait(self.mz_a,self.mz_b,self.Vol[0,n]) * 0.81
+                self.m[0,n]=self.mp * 0.81
                 
         # prey preference
         for jpred in range(0,self.n_pft):

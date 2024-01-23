@@ -54,20 +54,19 @@ class ODE:
                 F = np.sum(self.f[:, p] * B)  # availability of prey = biomass * palatability
                 if F > 0.0:
                     PR = 1.0 - np.exp(self.lamdaprey * F)
-
                     for jprey in range(0, self.n_pft):  # loop over prey
-
                         if self.PFT_P[jprey]:
-                            pref = np.sum(self.f[self.PFT_P, p] * B[0, self.PFT_P] ** 2) / np.sum(self.f[:, p] * B ** 2)
+                            refugee = np.sum(self.f[self.PFT_P, p] * B[0, self.PFT_P] ** 2) / np.sum(self.f[:, p] * B ** 2)
                         elif self.PFT_Z[jprey]:
-                            pref = np.sum(self.f[self.PFT_Z, p] * B[0, self.PFT_Z] ** 2) / np.sum(self.f[:, p] * B ** 2)
+                            refugee = np.sum(self.f[self.PFT_Z, p] * B[0, self.PFT_Z] ** 2) / np.sum(self.f[:, p] * B ** 2)
                         elif self.PFT_F[jprey]:
-                            pref = np.sum(self.f[self.PFT_F, p] * B[0, self.PFT_F] ** 2) / np.sum(self.f[:, p] * B ** 2)
-                        if pref > 1.0:
-                            print('wrong value, pref>1.0')
+                            PR = 1
+                            refugee = np.sum(self.f[self.PFT_F, p] * B[0, self.PFT_F] ** 2) / np.sum(self.f[:, p] * B ** 2)
+                        if refugee > 1.0:
+                            print('wrong value, refugee>1.0')
 
-                        graze = self.g[0, p] * self.gamma_T * (
-                                    self.f[jprey, p] * B[0, jprey] / (F + self.kcprey)) * PR * pref  # Holling Type II
+                        graze = self.Gmax[0, p] * self.gamma_T * (
+                                    self.f[jprey, p] * B[0, jprey] / (F + self.kcprey)) * PR * refugee  # Holling Type II
 
                         dBdt[0, p] = dBdt[0, p] + (graze * B[0, p] * self.lamda)
 
