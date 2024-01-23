@@ -11,22 +11,26 @@ class Chemostat(ODE):
         self.T = temp+273.15   # ambient water temperature in Kelvin
         self.source_N = nutrient  # Source Nutrients Concentration {mmolNm^-3} supplying to the system
 
-    def get_diameter(self, n, plankton):
-        """
-        generate n diameters for a given plankton type
-        fitted from Grigoratou et al. 2019 BG
-        zooplankton sampled from 0-1900 um
-        phytoplankton sampled from 0-190 um
-        """
-        coef_a = {
-            "phytoplankton": 0.625,
-            "zooplankton": 6.25,
-            "foraminifera": 6.25,
-        }
-        a = coef_a[plankton]
-        b = 0.23
-        index = np.linspace(0, 25, n)
-        return a * np.exp(b * index)
+    def get_phyto_diameter(self,n):
+         "get n plankton diameter"
+         diamtr =np.zeros([n])
+
+         diamtr[0]=0.6204
+         for i in range(1,n):
+             diamtr[i]=diamtr[i-1]*np.power(2,1.0/3.0)
+         return diamtr
+
+    def get_zoo_diameter(self,n):
+         diamtr =np.zeros([n])
+         phyto_diamtr = self.get_phyto_diameter(n)
+         for i in range(0,n):
+             a=1024*(4.0/3.0*np.pi*(phyto_diamtr[i]*0.5)**3)
+             diamtr[i]=2.0*((3.0*a/(4.0*np.pi))**(1.0/3.0))
+         return diamtr
+
+    def get_foram_diameter(self,n):
+         "scale from 100 to 500 micron"
+         return np.linspace(100, 500, n)
 
     def _cal_platability(self, size_pred, size_prey, sigma, thita_opt):
         "calculate prey palatability based on equation A21, Ward et al 2012"
@@ -82,9 +86,9 @@ class Chemostat(ODE):
 
         self.diameter = np.concatenate(
             (
-                self.get_diameter(self.n_phytoplankton, "phytoplankton"),
-                self.get_diameter(self.n_zooplankton, "zooplankton"),
-                self.get_diameter(self.n_foram, "foraminifera"),
+                self.get_phyto_diameter(self.n_phytoplankton),
+                self.get_zoo_diameter(self.n_zooplankton),
+                self.get_foram_diameter(self.n_foram)
             )
         )
         
@@ -129,9 +133,7 @@ class Chemostat(ODE):
     def _set_plank_par(self):
         """
         set ecophysiological parameters for each plankton type
-        """
-
-        
+        """        
         self.diameter = np.reshape(self.diameter, (1, self.n_pft))
 
         # volume plankton cell {micrometers^3}
@@ -139,7 +141,7 @@ class Chemostat(ODE):
             self.Vol[0,j] = 4.0 / 3.0 * np.pi * (self.diameter[0,j]*0.5)**3  
 
         cal_pcmax_a = np.vectorize(self._cal_pcmax_a)
-        self.pcmax_a[0, 0:self.n_phytoplankton] = cal_pcmax_a(self.get_diameter(self.n_phytoplankton, "phytoplankton"))
+        self.pcmax_a[0, 0:self.n_phytoplankton] = cal_pcmax_a(self.get_phyto_diameter(self.n_phytoplankton))
         
         ## assign values for all plankton
         for n in range(0,self.n_pft):
