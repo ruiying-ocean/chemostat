@@ -24,7 +24,7 @@ gamma_l = 0.1 #light limitation (from Ward et al. 2014)
 
 ### other plankton parameters (from Ward et al., 2012;2014) ###
 mp = 0.02  # plankton mortality {day^-1}
-resp_p = 0.02 ## plankton respiration (d-1)
+resp_p = 0.00 ## plankton respiration (d-1)
 lamdaprey = -1.0  # prey refure parameter {no units}
 theta_opt = 10.0  # optimum predator:prey ratio {no units}
 lamda = 0.7  # maximum assimilation efficiency
@@ -45,6 +45,18 @@ init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
 
 [Plankton]
-esd_phytoplankton = [0.2,0.6,2.0,20.0,200]
-esd_zooplankton = [2,6,20,200,2000]
-esd_foram = [200]
+esd_phytoplankton = [6.20400000e-01,   7.81655019e-01,   9.84823613e-01,   1.24080000e+00,
+    1.56331004e+00,   1.96964723e+00,   2.48160000e+00,   3.12662008e+00,
+    3.93929445e+00,   4.96320000e+00,   6.25324015e+00,   7.87858890e+00,
+    9.92640000e+00,   1.25064803e+01,   1.57571778e+01,   1.98528000e+01,
+    2.50129606e+01,   3.15143556e+01,   3.97056000e+01,   5.00259212e+01,
+    6.30287112e+01,   7.94112000e+01,   1.00051842e+02,   1.26057422e+02,
+    1.58822400e+02]
+esd_zooplankton = [6.25324015e+00,   7.87858890e+00,   9.92640000e+00,
+    1.25064803e+01,   1.57571778e+01,   1.98528000e+01,   2.50129606e+01,
+    3.15143556e+01,   3.97056000e+01,   5.00259212e+01,   6.30287112e+01,
+    7.94112000e+01,   1.00051842e+02,   1.26057422e+02,   1.58822400e+02,
+    2.00103685e+02,   2.52114845e+02,   3.17644800e+02,   4.00207370e+02,
+    5.04229690e+02,   6.35289600e+02,   8.00414740e+02,   1.00845938e+03,
+    1.27057920e+03,   1.60082948e+03,]
+esd_foram = [1.98528000e+01]

@@ -51,33 +51,58 @@ class ODE:
 
         self.gamma_T = np.exp(self.R * (self.T - self.T_ref))
 
-        Nuptake = self.gamma_l * self.gamma_T * self.mumax * N / (self.kN + N) * B
-        dNdt = dNdt + self.K * (self.source_N - N) - np.sum(Nuptake)
+        # Nuptake = self.gamma_l * self.gamma_T * self.mumax * N / (self.kN + N) * B
+        # dNdt = dNdt + self.K * (self.source_N - N) - np.sum(Nuptake)
 
-        F = np.dot(self.f.T, B)
-        graze_rate = self.Gmax * self.gamma_T * F / (F + self.knprey)
-        
-        ## grazing term
-        for i in range(self.n_pft):
-            for j in range(self.n_pft):
-                ## i = predator, j = prey
-                F[i] = np.sum(self.f[j,i] * B[j])
-                # if F[i] == F_vec[i]:
-                #     print('F_vec[i] is correct')
+        for i in range(self.n_pft):                    
+            if self.PFT_P_bool[i]: # phyto                
+                Nuptake[i]=self.gamma_l* self.gamma_T * self.mumax[i]*N/(self.kN[i]+N)*B[i]                             
+                
+            elif self.PFT_Z_bool[i]: # zoo                
+                F=np.sum(self.f[:,i]*B) # availability of prey                            
+                if F>0.0:
+                    PR= 1.0-np.exp(self.lamdaprey*F)  
+                                        
+                    for jprey in range(self.n_pft): # loop over prey                        
+                        if self.PFT_P_bool[jprey]:
+                            pref=np.sum(self.f[self.PFT_P_bool,i]*B[self.PFT_P_bool]**2) / np.sum(self.f[:,i]*B**2)
+                        elif self.PFT_Z_bool[jprey]:
+                            pref=np.sum(self.f[self.PFT_Z_bool,i]*B[self.PFT_Z_bool]**2) / np.sum(self.f[:,i]*B**2)
+                        elif self.PFT_F_bool[jprey]:
+                            PR = 1.0 #no prey refuge
+                            pref=np.sum(self.f[self.PFT_F_bool,i]*B[self.PFT_F_bool]**2) / np.sum(self.f[:,i]*B**2) 
+                        if pref>1.0:
+                            print('wrong value, pref>1.0')
+                            
+                             
+                        graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR * pref                    
+                                                                
+                        dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
+                            
+                        dBdt[jprey]=dBdt[jprey]-(graze*B[i]) 
+                        
+                        self.graze_dt[jprey,i]=graze
+                        
+            elif self.PFT_F_bool[i]: # forams
+                F=np.sum(self.f[:,i]*B) # availability of prey
+                if F>0.0:
+                    PR= 1.0-np.exp(self.lamdaprey*F)                    
+                    for jprey in range(self.n_phytoplankton): # loop over prey
+                        graze = self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR 
+                                                                
+                        dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda) 
+                            
+                        dBdt[jprey]=dBdt[jprey]-(graze*B[i]) 
+                        
+                        self.graze_dt[jprey,i]=graze
 
-                graze_rate[i] = self.Gmax[i] * self.gamma_T * F[i] / (F[i] + self.knprey)
-                
-                gross_graz = graze_rate[i] * B[i]
-                
-                if gross_graz > B[j]: gross_graz = B[j]
-                    
-                dBdt[i] = dBdt[i] + gross_graz * self.lamda
-                dBdt[j] = dBdt[j] - gross_graz
-                
-        
-        dBdt = dBdt+ Nuptake - (B * self.m) - (self.K * B) - (B * self.resp * self.gamma_T)
 
-        return np.append(dNdt, dBdt)
+        self.Nuptake=Nuptake      
+        dBdt=dBdt+Nuptake-(B*self.m)-(self.K*B) -(B*self.resp*self.gamma_T)
+        dNdt=self.K*(self.source_N-N) - np.sum(Nuptake)
+
+        return np.append(dNdt,dBdt)                    
+
 
 
     def plot(self):
