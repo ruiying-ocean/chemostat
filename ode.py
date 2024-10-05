@@ -37,22 +37,16 @@ class ODE:
         ## state variable
         N = np.zeros(1)
         B = np.zeros(self.n_pft)
-        F = np.zeros(self.n_pft)
+        Nuptake = np.zeros(self.n_pft)
+        dBdt = np.zeros(self.n_pft)
+        dNdt = np.zeros(1)
         
         ## initial condition
         N = y[0]
         B = y[1:self.n_pft + 1]
 
-        Nuptake = np.zeros(self.n_pft)
-
-        ## array for the rate of change
-        dBdt = np.zeros(self.n_pft)
-        dNdt = np.zeros(1)
-
         self.gamma_T = np.exp(self.R * (self.T - self.T_ref))
 
-        # Nuptake = self.gamma_l * self.gamma_T * self.mumax * N / (self.kN + N) * B
-        # dNdt = dNdt + self.K * (self.source_N - N) - np.sum(Nuptake)
 
         for i in range(self.n_pft):                    
             if self.PFT_P_bool[i]: # phyto                
@@ -72,8 +66,7 @@ class ODE:
                             PR = 1.0 #no prey refuge
                             pref=np.sum(self.f[self.PFT_F_bool,i]*B[self.PFT_F_bool]**2) / np.sum(self.f[:,i]*B**2) 
                         if pref>1.0:
-                            print('wrong value, pref>1.0')
-                            
+                            raise ValueError('pref>1, this should not happen')                            
                              
                         graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR * pref                    
                                                                 
@@ -88,9 +81,8 @@ class ODE:
                     for jprey in range(self.n_phytoplankton): # loop over prey
                         graze = self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR 
                                                                 
-                        dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda) 
-                            
-                        dBdt[jprey]=dBdt[jprey]-(graze*B[i])                     
+                        dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
+                        dBdt[jprey]=dBdt[jprey]-(graze*B[i])
 
 
         self.Nuptake=Nuptake      
