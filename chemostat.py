@@ -40,6 +40,10 @@ class Chemostat(ODE):
         self.PFT_P=np.zeros(self.n_pft)
         self.PFT_Z=np.zeros(self.n_pft)
         self.PFT_F=np.zeros(self.n_pft)
+        self.PFT_P_bool = np.zeros(self.n_pft)
+        self.PFT_Z_bool = np.zeros(self.n_pft)
+        self.PFT_F_bool = np.zeros(self.n_pft)
+
         
         ## loop over plankton types and set PFT flags
         ## 1: true, 0: false
@@ -50,7 +54,13 @@ class Chemostat(ODE):
             if i >= self.n_phytoplankton and i < self.n_phytoplankton + self.n_zooplankton:
                     self.PFT_Z[i] = 1
             if i >= self.n_phytoplankton + self.n_zooplankton:
-                    self.PFT_F[i] = 1                       
+                    self.PFT_F[i] = 1
+
+        ## set boolean flags
+        self.PFT_P_bool = (self.PFT_P == 1)
+        self.PFT_Z_bool = (self.PFT_Z == 1)
+        self.PFT_F_bool = (self.PFT_F == 1)
+                       
             
 
         self._init_array()
