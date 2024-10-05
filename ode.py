@@ -79,9 +79,7 @@ class ODE:
                                                                 
                         dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
                             
-                        dBdt[jprey]=dBdt[jprey]-(graze*B[i]) 
-                        
-                        self.graze_dt[jprey,i]=graze
+                        dBdt[jprey]=dBdt[jprey]-(graze*B[i])                     
                         
             elif self.PFT_F_bool[i]: # forams
                 F=np.sum(self.f[:,i]*B) # availability of prey
@@ -92,9 +90,7 @@ class ODE:
                                                                 
                         dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda) 
                             
-                        dBdt[jprey]=dBdt[jprey]-(graze*B[i]) 
-                        
-                        self.graze_dt[jprey,i]=graze
+                        dBdt[jprey]=dBdt[jprey]-(graze*B[i])                     
 
 
         self.Nuptake=Nuptake      
