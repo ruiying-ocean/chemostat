@@ -54,23 +54,28 @@ class ODE:
         Nuptake = self.gamma_l * self.gamma_T * self.mumax * N / (self.kN + N) * B
         dNdt = dNdt + self.K * (self.source_N - N) - np.sum(Nuptake)
 
+        F = np.dot(self.f.T, B)
+        graze_rate = self.Gmax * self.gamma_T * F / (F + self.knprey)
+        
         ## grazing term
         for i in range(self.n_pft):
             for j in range(self.n_pft):
                 ## i = predator, j = prey
-                F[i] = np.sum(self.f[j,i] * B[j])        
-                graze_rate = self.Gmax[i] * self.gamma_T * F[i] / (F[i] + self.knprey)
-
-                prey_loss = graze_rate * B[i]
-                if prey_loss > B[j]: prey_loss = B[j]
+                # F[i] = np.sum(self.f[j,i] * B[j])
+                # if F[i] == F_vec[i]:
+                #     print('F_vec[i] is correct')
+                gross_graz = graze_rate[i] * B[i]
+                
+                if gross_graz > B[j]: gross_graz = B[j]
                     
-                dBdt[i] = dBdt[i] + prey_loss * self.lamda
-                dBdt[j] = dBdt[j] - prey_loss
+                dBdt[i] = dBdt[i] + gross_graz * self.lamda
+                dBdt[j] = dBdt[j] - gross_graz
                 
         
         dBdt = dBdt+ Nuptake - (B * self.m) - (self.K * B) - (B * self.resp * self.gamma_T)
 
         return np.append(dNdt, dBdt)
+
 
     def plot(self):
         ### plot biomass, nutrient, size distribution
