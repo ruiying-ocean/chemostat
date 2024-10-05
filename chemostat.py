@@ -146,12 +146,12 @@ class Chemostat(ODE):
         self.mumax= self._cal_mumax(self.pcmax,self.Vmax,self.Qmax, self.Qmin,self.deltaQ) * self.PFT_P
         self.kN = self._cal_kN(self.pcmax, self.kNO3,self.Vmax,self.Qmax,self.Qmin,self.deltaQ) * self.PFT_P
         self.Gmax = self.Gmax * self.PFT_Z
-        self.m = self.mp
+        self.m = self.mp * np.ones(self.n_pft)
         
         for i in range(0,self.n_pft):
             if self.PFT_F[i] == 1.0:
                 self.Gmax[i]=self.Gmax[i] * self.cal_cost
-                self.m[i]=self.mp * self.cal_p
+                self.m[i]=self.m[i] * self.cal_p
                 
         # prey preference
         for jpred in range(0,self.n_pft):
