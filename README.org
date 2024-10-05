@@ -1,6 +1,6 @@
 * About
 
-This is a project aiming to adapt the 0D foram model (Grigoratou et al. 2019) to include more foram group based on better coding structure.
+This is a project aiming to adapt the 0D foram model (Grigoratou et al. 2019) to include more foram group with slightly changed coding structure.
 
 It's forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosciences_SM
 

@@ -5,32 +5,84 @@ from ode import ODE
 class Chemostat(ODE):
     """
     A theoretical size-based model of plankton in a chemostat, adapted from Grigoratou et al. 2019 BG
+
+    This class is a subclass of ODE. It calculates plankton parameters and inherits ODE's methods for solving the system of ODEs.
     """
     
     def __init__(self,temp,nutrient):  
         self.T = temp+273.15   # ambient water temperature in Kelvin
         self.source_N = nutrient  # Source Nutrients Concentration {mmolNm^-3} supplying to the system
 
-    def get_phyto_diameter(self,n):
-         "get n plankton diameter"
-         diamtr =np.zeros([n])
+    def load_ecoconfig(self, file):
+        "read config from file, set related parameters, and initialise arrays"
+        with open(file, "rb") as f:
+            data = tomllib.load(f)
 
-         diamtr[0]=0.6204
-         for i in range(1,n):
-             diamtr[i]=diamtr[i-1]*np.power(2,1.0/3.0)
-         return diamtr
+        # set hyper config
+        for name, value in data.get('Hyper_Parameters', {}).items():
+            setattr(self, name, value)
 
-    def get_zoo_diameter(self,n):
-         diamtr =np.zeros([n])
-         phyto_diamtr = self.get_phyto_diameter(n)
-         for i in range(0,n):
-             a=1024*(4.0/3.0*np.pi*(phyto_diamtr[i]*0.5)**3)
-             diamtr[i]=2.0*((3.0*a/(4.0*np.pi))**(1.0/3.0))
-         return diamtr
+        # set plankton structure
+        for name, value in data.get('Plankton', {}).items():
+            setattr(self, name, value)            
 
-    def get_foram_diameter(self,n):
-         "scale from 100 to 500 micron"
-         return np.linspace(100, 500, n)
+        self.n_phytoplankton = len(self.esd_phytoplankton)
+        self.n_zooplankton = len(self.esd_zooplankton)
+        self.n_foram = len(self.esd_foram)
+
+        self.diameter = np.concatenate([self.esd_phytoplankton,self.esd_zooplankton, self.esd_foram])
+        
+
+        self.n_pft = self.n_phytoplankton + self.n_zooplankton + self.n_foram
+        
+        self.PFT_P=np.zeros(self.n_pft)
+        self.PFT_Z=np.zeros(self.n_pft)
+        self.PFT_F=np.zeros(self.n_pft)
+        
+        ## loop over plankton types and set PFT flags
+        ## 1: true, 0: false
+        for i in range(self.n_pft):
+            ## first n_phytoplankton are phytoplankton
+            if i < self.n_phytoplankton:
+                    self.PFT_P[i] = 1
+            if i >= self.n_phytoplankton and i < self.n_phytoplankton + self.n_zooplankton:
+                    self.PFT_Z[i] = 1
+            if i >= self.n_phytoplankton + self.n_zooplankton:
+                    self.PFT_F[i] = 1                       
+            
+
+        self._init_array()
+        self._assign_plank_par()
+
+    def _init_array(self):
+        "initialise arrays for storing parameters and output data"
+        self.Qmin = np.zeros(self.n_pft)
+        self.Qmax = np.zeros(self.n_pft)
+        self.deltaQ = np.zeros(self.n_pft)
+
+        self.pcmax = np.zeros(self.n_pft)
+        self.pcmax_a=np.zeros(self.n_pft)
+        self.mumax = np.zeros(self.n_pft)
+        self.Vmax = np.zeros(self.n_pft)
+        self.kNO3 = np.zeros(self.n_pft)
+
+        self.kN = np.zeros(self.n_pft)
+        self.Gmax=np.zeros(self.n_pft)
+
+        self.kappa=np.ones(self.n_pft) * self.K ## mixing rate of Chemostat
+        self.m=np.zeros(self.n_pft)      # mortality
+        self.Vol = np.zeros(self.n_pft)  # biovolume
+        self.f = np.zeros([self.n_pft, self.n_pft]) # Grazing matrix
+
+        self.N0 = np.ones(1) * self.init_N  # nutrient array at t0
+        self.B0 = np.ones(self.n_pft) * self.init_B  # biomass array at t0
+
+        self.output_t = np.zeros([self.save_freq, 1])
+        self.output_B = np.zeros([self.save_freq, self.n_pft])  # output array for plankton biomass through time
+        self.output_N = np.zeros([self.save_freq, 1])  # output array for nutrient through time
+        self.graze_dt = np.zeros([self.n_pft, self.n_pft]) ## grazing term in each time step
+        
+        
 
     def _cal_platability(self, size_pred, size_prey, sigma, thita_opt):
         "calculate prey palatability based on equation A21, Ward et al 2012"
@@ -39,10 +91,6 @@ class Chemostat(ODE):
         return np.exp(-(((np.log(size_ratio / thita_opt)) ** 2) * ((2 * sigma ** 2) ** -1)))
 
     def _cal_pcmax_a(self, diameter):
-        # < 0.8 => 1.0
-        # < 1.8 => 1.4
-        # < 5.6 => 2.1
-        # > 5.6 => 3.8
         if diameter < 0.8:
             return 1.0
         elif diameter < 1.8 and diameter >= 0.8:
@@ -70,116 +118,48 @@ class Chemostat(ODE):
     def _cal_allom_trait(self, a, b, V):
         return a * V ** b
 
-    def load_config(self, file):
-        with open(file, "rb") as f:
-            data = tomllib.load(f)
+    
 
-        # set hyper config
-        for name, value in data.get('Hyper_Parameters', {}).items():
-            setattr(self, name, value)
-
-        # set plankton config
-        for name, value in data.get('Plankton', {}).items():
-            setattr(self, name, value)
-            
-        self.n_pft = self.n_phytoplankton + self.n_zooplankton + self.n_foram
-
-        self.diameter = np.concatenate(
-            (
-                self.get_phyto_diameter(self.n_phytoplankton),
-                self.get_zoo_diameter(self.n_zooplankton),
-                self.get_foram_diameter(self.n_foram)
-            )
-        )
-        
-        self.PFT_P=np.zeros([self.n_pft],dtype=bool)
-        self.PFT_Z=np.zeros([self.n_pft],dtype=bool)
-        self.PFT_F=np.zeros([self.n_pft],dtype=bool)
-        
-        self.PFT_P[0:self.n_phytoplankton]=True
-        self.PFT_Z[self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton]=True
-        self.PFT_F[self.n_phytoplankton+self.n_zooplankton:self.n_pft]=True
-
-        self._init_array()
-        self._set_plank_par()
-
-    def _init_array(self):
-        self.pcmax = np.zeros([1,self.n_pft])
-        self.pcmax_a=np.zeros([1,self.n_pft])
-        self.Qmin = np.zeros([1,self.n_pft])
-        self.Qmax = np.zeros([1,self.n_pft])
-        self.deltaQ = np.zeros([1,self.n_pft])
-        self.mumax = np.zeros([1,self.n_pft])
-        self.kNO3 = np.zeros([1,self.n_pft])
-        self.Vmax = np.zeros([1,self.n_pft])
-        self.kN = np.zeros([1,self.n_pft])
-        self.Gmax=np.zeros([1,self.n_pft])
-
-        self.kappa=np.ones([1,self.n_pft]) * self.K
-        self.mz=np.zeros([1,self.n_pft])
-        self.m=np.zeros([1,self.n_pft])
-        self.Vol = np.zeros([1,self.n_pft])  # biovolume
-        self.f = np.zeros([self.n_pft, self.n_pft]) # Grazing matrix
-
-        self.N0 = np.ones([1, 1]) * self.init_N  # nutrient array at t0
-        self.B0 = np.ones([1, self.n_pft]) * self.init_B  # biomass array at t0
-
-        self.output_t = np.zeros([self.save_freq, 1])
-        self.output_B = np.zeros([self.save_freq, self.n_pft])  # output array for plankton biomass through time
-        self.output_N = np.zeros([self.save_freq, 1])  # output array for nutrient through time
-
-
-    def _set_plank_par(self):
+    def _assign_plank_par(self):
         """
         set ecophysiological parameters for each plankton type
         """        
-        self.diameter = np.reshape(self.diameter, (1, self.n_pft))
 
         # volume plankton cell {micrometers^3}
-        for j in range(0, self.n_pft):
-            self.Vol[0,j] = 4.0 / 3.0 * np.pi * (self.diameter[0,j]*0.5)**3  
+        self.Vol = 4.0 / 3.0 * np.pi * (self.diameter*0.5)**3  
 
         cal_pcmax_a = np.vectorize(self._cal_pcmax_a)
-        self.pcmax_a[0, 0:self.n_phytoplankton] = cal_pcmax_a(self.get_phyto_diameter(self.n_phytoplankton))
+        self.pcmax_a[0:self.n_phytoplankton] = cal_pcmax_a(self.esd_phytoplankton)
         
         ## assign values for all plankton
-        for n in range(0,self.n_pft):
-            ## Quota
-            self.Qmax[0,n] = self._cal_allom_trait(self.Qmax_a,self.Qmax_b,self.Vol[0,n])
-            self.Qmin[0,n] = self._cal_allom_trait(self.Qmin_a,self.Qmin_b,self.Vol[0,n])
-            self.deltaQ[0,n] = self.Qmax[0,n] - self.Qmin[0,n]
-            self.Vmax[0,n]= self._cal_allom_trait(self.Vmax_a,self.Vmax_b,self.Vol[0,n])
-            self.Gmax[0,n]= self._cal_allom_trait(self.Gmax_a,self.Gmax_b,self.Vol[0,n])
-            self.kNO3[0,n]= self._cal_allom_trait(self.kNO3_a,self.kNO3_b,self.Vol[0,n])
-            ## pcmax = muinf in the paper
-            self.pcmax[0,n]= self._cal_allom_trait(self.pcmax_a[0,n],self.pcmax_b,self.Vol[0,n])
+        ## Quota
+        self.Qmax = self._cal_allom_trait(self.Qmax_a, self.Qmax_b, self.Vol)
+        self.Qmin = self._cal_allom_trait(self.Qmin_a, self.Qmin_b, self.Vol)
+        self.deltaQ = self.Qmax - self.Qmin
+        self.Vmax = self._cal_allom_trait(self.Vmax_a, self.Vmax_b, self.Vol)
+        self.Gmax = self._cal_allom_trait(self.Gmax_a, self.Gmax_b, self.Vol)
+        self.kNO3 = self._cal_allom_trait(self.kNO3_a, self.kNO3_b, self.Vol)
+        ## pcmax = muinf in the paper
+        self.pcmax = self._cal_allom_trait(self.pcmax_a, self.pcmax_b, self.Vol)
 
         ## group-specific values
-        for n in range(0,self.n_pft):
-            if self.PFT_P[n]:
-                self.mumax[0,n]= self._cal_mumax(self.pcmax[0,n],self.Vmax[0,n],self.Qmax[0,n], self.Qmin[0,n],self.deltaQ[0,n])
-                self.kN[0,n]= self._cal_kN(self.pcmax[0,n], self.kNO3[0,n],self.Vmax[0,n],self.Qmax[0,n],self.Qmin[0,n],self.deltaQ[0,n])
-                self.m[0,n]=self.mp
-                self.Gmax[0,n]=0
-                
-            elif self.PFT_Z[n]:
-                self.m[0,n]= self._cal_allom_trait(self.mz_a,self.mz_b,self.Vol[0,n])
-
-            elif self.PFT_F[n]:
-                self.Gmax[0,n]=self.Gmax[0,n] *0.5
-                #self.m[0,n] = self._cal_allom_trait(self.mz_a,self.mz_b,self.Vol[0,n]) * 0.81
-                self.m[0,n]=self.mp * 0.81
+        self.mumax= self._cal_mumax(self.pcmax,self.Vmax,self.Qmax, self.Qmin,self.deltaQ) * self.PFT_P
+        self.kN = self._cal_kN(self.pcmax, self.kNO3,self.Vmax,self.Qmax,self.Qmin,self.deltaQ) * self.PFT_P
+        self.Gmax = self.Gmax * self.PFT_Z
+        self.m = self.mp
+        
+        for i in range(0,self.n_pft):
+            if self.PFT_F[i] == 1.0:
+                self.Gmax[i]=self.Gmax[i] * self.cal_cost
+                self.m[i]=self.mp * self.cal_p
                 
         # prey preference
         for jpred in range(0,self.n_pft):
             ## zooplankton
             if self.PFT_Z[jpred]:
                 for jprey in range(0,self.n_pft):
-                    self.f[jprey,jpred] = self._cal_platability(self.diameter[0,jpred],self.diameter[0,jprey],self.sigma_z,self.thita_opt)
+                    self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_z,self.thita_opt)
             ## in this version, forams only feed on phytoplankton
             if self.PFT_F[jpred]:
                 for jprey in range(0,self.n_phytoplankton):
-                    self.f[jprey,jpred] = self._cal_platability(self.diameter[0,jpred],self.diameter[0,jprey],self.sigma_f,self.thita_opt)
-                        
-        self.graze_dt=np.zeros([self.n_pft,self.n_pft])
-
+                    self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_f,self.thita_opt)

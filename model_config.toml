@@ -33,15 +33,17 @@ K = 0.01  # dilution rate k for plankton washed out and nutrient supply in
 
 ### planktonic foraminifera's parameters ###
 sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
+cal_p = 0.0 ## mortality scaling factor as cost of calcification
+cal_cost = 1.0 ## growth rate scaling factor as cost of calcification
 
 ## simulation-specific configuration
-nday = 5000 ## running time
+nday = 10000 ## running time
 save_freq = 500 ## save frequency
 dt = 1 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
 
 [Plankton]
-n_phytoplankton = 25
-n_zooplankton = 25
-n_foram = 15
+esd_phytoplankton = [20]
+esd_zooplankton = [200]
+esd_foram = []
