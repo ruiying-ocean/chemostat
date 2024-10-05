@@ -61,9 +61,12 @@ class ODE:
         for i in range(self.n_pft):
             for j in range(self.n_pft):
                 ## i = predator, j = prey
-                # F[i] = np.sum(self.f[j,i] * B[j])
+                F[i] = np.sum(self.f[j,i] * B[j])
                 # if F[i] == F_vec[i]:
                 #     print('F_vec[i] is correct')
+
+                graze_rate[i] = self.Gmax[i] * self.gamma_T * F[i] / (F[i] + self.knprey)
+                
                 gross_graz = graze_rate[i] * B[i]
                 
                 if gross_graz > B[j]: gross_graz = B[j]
