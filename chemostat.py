@@ -12,6 +12,8 @@ class Chemostat(ODE):
     def __init__(self,temp,nutrient):  
         self.T = temp+273.15   # ambient water temperature in Kelvin
         self.source_N = nutrient  # Source Nutrients Concentration {mmolNm^-3} supplying to the system
+        
+
 
     def load_ecoconfig(self, file):
         "read config from file, set related parameters, and initialise arrays"
@@ -69,8 +71,8 @@ class Chemostat(ODE):
         self.kN = np.zeros(self.n_pft)
         self.Gmax=np.zeros(self.n_pft)
 
-        self.kappa=np.ones(self.n_pft) * self.K ## mixing rate of Chemostat
         self.m=np.zeros(self.n_pft)      # mortality
+        self.resp = np.ones(self.n_pft)  # respiration
         self.Vol = np.zeros(self.n_pft)  # biovolume
         self.f = np.zeros([self.n_pft, self.n_pft]) # Grazing matrix
 
@@ -84,11 +86,13 @@ class Chemostat(ODE):
         
         
 
-    def _cal_platability(self, size_pred, size_prey, sigma, thita_opt):
+    def _cal_platability(self, size_pred, size_prey, sigma, theta_opt):
         "calculate prey palatability based on equation A21, Ward et al 2012"
 
         size_ratio = size_pred / size_prey
-        return np.exp(-(((np.log(size_ratio / thita_opt)) ** 2) * ((2 * sigma ** 2) ** -1)))
+        numerator = np.log(size_ratio / theta_opt) ** 2 * -1
+        denominator = 2 * sigma ** 2
+        return np.exp(numerator / denominator)
 
     def _cal_pcmax_a(self, diameter):
         if diameter < 0.8:
@@ -147,19 +151,29 @@ class Chemostat(ODE):
         self.kN = self._cal_kN(self.pcmax, self.kNO3,self.Vmax,self.Qmax,self.Qmin,self.deltaQ) * self.PFT_P
         self.Gmax = self.Gmax * self.PFT_Z
         self.m = self.mp * np.ones(self.n_pft)
+        self.resp = self.resp_p * np.ones(self.n_pft)
         
         for i in range(0,self.n_pft):
             if self.PFT_F[i] == 1.0:
                 self.Gmax[i]=self.Gmax[i] * self.cal_cost
                 self.m[i]=self.m[i] * self.cal_p
                 
-        # prey preference
+        # prey preference matrix
         for jpred in range(0,self.n_pft):
-            ## zooplankton
-            if self.PFT_Z[jpred]:
-                for jprey in range(0,self.n_pft):
-                    self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_z,self.thita_opt)
-            ## in this version, forams only feed on phytoplankton
-            if self.PFT_F[jpred]:
+            for jprey in range(0,self.n_pft):
+                self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_z,self.theta_opt)
+                
+
+        ## modify the grazing matrix
+        for i in range(0,self.n_pft):
+            ## no PFT eats itself
+            self.f[i,i] = 0.0
+
+            ## no phytoplankton predator
+            if self.PFT_P[i] == 1:
+                self.f[:,i] = 0.0
+
+            ## foram does not eat zooplankton
+            if self.PFT_F[i] == 1:
                 for jprey in range(0,self.n_phytoplankton):
-                    self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_f,self.thita_opt)
+                    self.f[jprey,i] = 0.0

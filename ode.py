@@ -29,78 +29,47 @@ class ODE:
         self.output_size = np.sum(self.output_prop * self.diameter, axis=1)
 
     def diff_eqn(self, y, t):
-        "differential equation fed to odeint solver"
+        """differential equation fed to odeint solver
+        y: state variable (including both N and B)
+        t: time
+        """
 
         ## state variable
         N = np.zeros(1)
         B = np.zeros(self.n_pft)
+        F = np.zeros(self.n_pft)
         
         ## initial condition
         N = y[0]
         B = y[1:self.n_pft + 1]
+
         Nuptake = np.zeros(self.n_pft)
 
         ## array for the rate of change
         dBdt = np.zeros(self.n_pft)
         dNdt = np.zeros(1)
-        graze = 0.0
 
         self.gamma_T = np.exp(self.R * (self.T - self.T_ref))
 
+        Nuptake = self.gamma_l * self.gamma_T * self.mumax * N / (self.kN + N) * B
+        dNdt = dNdt + self.K * (self.source_N - N) - np.sum(Nuptake)
+
+        ## grazing term
         for i in range(self.n_pft):
-            if self.PFT_P[i] == 1.0:
-                Nuptake[i] = self.gamma_l * self.gamma_T * self.mumax[i] * N / (self.kN[i] + N) * B[i]
-            elif self.PFT_Z[i] == 1.0:
-                F = np.sum(self.f[:, i] * B)  # availability of prey = biomass * palatability
-                if F > 0.0:
-                    PR = 1.0 - np.exp(self.lamdaprey * F)
-                    for jprey in range(self.n_pft):  # loop over prey
-                        if self.PFT_P[jprey] == 1.0:
-                            refugee = np.sum(self.f[self.PFT_P == 1.0, i] * B[self.PFT_P == 1.0] ** 2) / np.sum(self.f[:, i] * B ** 2)
-                        elif self.PFT_Z[jprey]:
-                            refugee = np.sum(self.f[self.PFT_Z == 1.0, i] * B[self.PFT_Z == 1.0] ** 2) / np.sum(self.f[:, i] * B ** 2)
-                        elif self.PFT_F[jprey]:
-                            PR = 1
-                            refugee = np.sum(self.f[self.PFT_F == 1.0, i] * B[self.PFT_F == 1.0] ** 2) / np.sum(self.f[:, i] * B ** 2)
-                        if refugee > 1.0:
-                            print('wrong value, refugee term >1.0')
+            for j in range(self.n_pft):
+                ## i = predator, j = prey
+                F[i] = np.sum(self.f[j,i] * B[j])        
+                graze_rate = self.Gmax[i] * self.gamma_T * F[i] / (F[i] + self.knprey)
 
-                        graze = self.Gmax[i] * self.gamma_T * (
-                                    self.f[jprey, i] * B[jprey] / (F + self.kcprey)) * PR * refugee  # Holling Type II
+                prey_loss = graze_rate * B[i]
+                if prey_loss > B[j]: prey_loss = B[j]
+                    
+                dBdt[i] = dBdt[i] + prey_loss * self.lamda
+                dBdt[j] = dBdt[j] - prey_loss
+                
+        
+        dBdt = dBdt+ Nuptake - (B * self.m) - (self.K * B) - (B * self.resp * self.gamma_T)
 
-                        dBdt[i] = dBdt[i] + (graze * B[i] * self.lamda)
-
-                        dBdt[jprey] = dBdt[jprey] - (graze * B[i])
-
-                        self.graze_dt[jprey, i] = graze
-
-            elif self.PFT_F[jprey] == 1.0:
-                F = np.sum(self.f[:, i] * B)  # availability of prey
-                PR = 1.0 #no prey refuge
-                if F > 0.0:
-                    PR = 1.0 - np.exp(self.lamdaprey * F)
-
-                    for jprey in range(self.n_phytoplankton):  # loop over phytoplankton prey
-
-                        graze = self.Gmax[i] * self.gamma_T * (self.f[jprey, i] * B[jprey] / (F + self.kcprey)) * PR
-
-                        dBdt[i] = dBdt[i] + (graze * B[i] * self.lamda)
-
-                        dBdt[jprey] = dBdt[jprey] - (graze * B[i])
-
-                        self.graze_dt[jprey, i] = graze
-
-
-        dBdt = dBdt + Nuptake - (B * self.m) - (self.kappa * B)
-
-        dNdt = self.K * (self.source_N - N) - np.sum(Nuptake)
-        ##non negative values
-        if dBdt[i] < 1e-99:
-            dBdt[i] = 1e-99
-            self.graze_dt[i] = 0.0
-        if dNdt < 1e-99:
-            dNdt = 1e-99
-            Nuptake = 0.0
         return np.append(dNdt, dBdt)
 
     def plot(self):
@@ -110,8 +79,8 @@ class ODE:
         ## Set shared x axis
         fig.supxlabel('Time (days)')
 
-        axs[0].plot(self.output_t, self.output_B[:,0:self.n_phytoplankton], 'red')
-        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton],'blue')
+        axs[0].plot(self.output_t, self.output_B[:,0:self.n_phytoplankton], 'green')
+        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton],'red')
         axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton+self.n_zooplankton:self.n_pft],'black')
         axs[0].set_title('Biomass')
         axs[0].set_ylabel('Biomass (mmol N m$^{-3}$)')
@@ -124,8 +93,9 @@ class ODE:
         axs[2].set_title('Community Size Mean')
         axs[2].set_ylabel('Size (μm)')
 
-        ## add legend
-        axs[0].legend(['Phytoplankton', 'Zooplankton', 'Foraminifera'], loc='upper right')
+        
+        
+
         
 
         plt.show()

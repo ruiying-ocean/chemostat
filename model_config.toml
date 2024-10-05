@@ -19,13 +19,14 @@ mz_a = 0.05
 mz_b = -0.16
 
 ### Size-Indenpendent Parameters ###
-kcprey=0.1509 #C TO N CONVERSION (from Ward et al. 2012)
+knprey=0.1051 ## half saturation const for grazing, mmol N m-3
 gamma_l = 0.1 #light limitation (from Ward et al. 2014)
 
 ### other plankton parameters (from Ward et al., 2012;2014) ###
 mp = 0.02  # plankton mortality {day^-1}
+resp_p = 0.02 ## plankton respiration (d-1)
 lamdaprey = -1.0  # prey refure parameter {no units}
-thita_opt = 10.0  # optimum predator:prey ratio {no units}
+theta_opt = 10.0  # optimum predator:prey ratio {no units}
 lamda = 0.7  # maximum assimilation efficiency
 sigma_z = 0.5 # standard deviation of zooplankton prey preference
 n_dt = 2.0 # number of timesteps: redundant currently
@@ -33,17 +34,17 @@ K = 0.01  # dilution rate k for plankton washed out and nutrient supply in
 
 ### planktonic foraminifera's parameters ###
 sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
-cal_p = 0.0 ## mortality scaling factor as cost of calcification
-cal_cost = 1.0 ## growth rate scaling factor as cost of calcification
+cal_p = 0.8 ## mortality scaling factor as cost of calcification
+cal_cost = 0.8 ## growth rate scaling factor as cost of calcification
 
 ## simulation-specific configuration
 nday = 10000 ## running time
-save_freq = 500 ## save frequency
+save_freq = 100 ## save frequency
 dt = 1 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
 
 [Plankton]
-esd_phytoplankton = [20]
-esd_zooplankton = [200]
-esd_foram = []
+esd_phytoplankton = [0.2,0.6,2.0,20.0,200]
+esd_zooplankton = [2,6,20,200,2000]
+esd_foram = [200]
