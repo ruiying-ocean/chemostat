@@ -10,7 +10,7 @@ It's forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosc
     from chemostat import Chemostat
 
     model = Chemostat(25, 1)
-    model.load_config("model_config.toml")
+    model.load_ecoconfig("model_config.toml")
 
     model.run()
     model.plot()
