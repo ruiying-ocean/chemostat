@@ -176,9 +176,6 @@ class Chemostat(ODE):
                 continue
             
             for jprey in range(self.n_pft):
-                # not implemented in the paper
-                # if jpred == jprey:
-                #     continue
                 
                 self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_z,self.theta_opt)
 
@@ -193,3 +190,8 @@ class Chemostat(ODE):
 
             
 
+
+
+        if not self.cannibalism:
+            for i in range(self.n_pft):
+                self.f[i,i] = 0.0            
