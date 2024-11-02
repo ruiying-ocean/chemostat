@@ -96,14 +96,14 @@ class ODE:
         dNdt=self.K*(self.source_N-N) - np.sum(Nuptake)
 
 
-        if dBdt[i] < 1e-99:
-            dBdt[i] = 1e-99
+        dNdt = np.max(dNdt, 0)
+        Nuptake = 0 if dNdt < 0 else Nuptake
+        ## foram can't have lose biomass (I know it is radiculouse, but that's the original code)
+        dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
 
-        if dNdt < 1e-99:
-            dNdt = 1e-99
-            Nuptake = 0.0
+        
 
-        return np.append(dNdt,dBdt)                    
+        return np.append(dNdt,dBdt)
 
 
 
