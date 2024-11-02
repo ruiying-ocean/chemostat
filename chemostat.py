@@ -153,6 +153,8 @@ class Chemostat(ODE):
         self.Vmax = self._cal_allom_trait(self.Vmax_a, self.Vmax_b, self.Vol)
         self.Gmax = self._cal_allom_trait(self.Gmax_a, self.Gmax_b, self.Vol)
         self.kNO3 = self._cal_allom_trait(self.kNO3_a, self.kNO3_b, self.Vol)
+        self.qcarbon = self._cal_allom_trait(self.qcarbon_a, self.qcarbon_b, self.Vol)
+        self.qnitrogen = self.qcarbon * 106/16 ## redfield ratio
         ## pcmax = muinf in the paper
         self.pcmax = self._cal_allom_trait(self.pcmax_a, self.pcmax_b, self.Vol)
 

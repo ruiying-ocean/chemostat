@@ -17,6 +17,8 @@ Vmax_b = -0.27
 pcmax_b = -0.15
 mz_a = 0.05
 mz_b = -0.16
+qcarbon_a = 1.45e-11
+qcarbon_b = 0.88
 
 ### Size-Indenpendent Parameters ###
 knprey=0.1051 ## half saturation const for grazing, mmol N m-3
@@ -26,7 +28,7 @@ gamma_l = 0.1 #light limitation (from Ward et al. 2014)
 mp = 0.02  # plankton mortality {day^-1}
 resp_p = 0.00 ## plankton respiration (d-1)
 lamdaprey = -1.0  # prey refure parameter {no units}
-theta_opt = 10.079368391360413  # optimum predator:prey ratio {no units}
+theta_opt = 10  # optimum predator:prey ratio {no units}
 lamda = 0.7  # maximum assimilation efficiency
 sigma_z = 0.5 # standard deviation of zooplankton prey preference
 n_dt = 2.0 # number of timesteps: redundant currently

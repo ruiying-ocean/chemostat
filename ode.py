@@ -28,6 +28,9 @@ class ODE:
         ## calculate weighted mean diameter
         self.output_size = np.sum(self.output_prop * self.diameter, axis=1)
 
+        ## calculate diversity
+        self.output_pft_richness  = np.sum(self.output_B > self.qnitrogen, axis=1)
+
     def diff_eqn(self, y, t):
         """differential equation fed to odeint solver
         y: state variable (including both N and B)
@@ -107,26 +110,39 @@ class ODE:
 
 
 
-    def plot(self):
+    def plot(self, sum_PFT=True):
         ### plot biomass, nutrient, size distribution
-        fig, axs = plt.subplots(1, 3, figsize=(12, 4), sharex=True, sharey=False)
+        plt.style.use('ggplot')        
+        fig, axs = plt.subplots(2,2, figsize=(8, 8), sharex=True, sharey=False, tight_layout=True)
 
         ## Set shared x axis
         fig.supxlabel('Time (days)')
 
-        axs[0].plot(self.output_t, self.output_B[:,0:self.n_phytoplankton], 'green')
-        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton:self.n_phytoplankton+self.n_zooplankton],'red')
-        axs[0].plot(self.output_t, self.output_B[:,self.n_phytoplankton+self.n_zooplankton:self.n_pft],'black')
-        axs[0].set_title('Biomass')
-        axs[0].set_ylabel('Biomass (mmol N m$^{-3}$)')
 
-        axs[1].plot(self.output_t, self.output_N, color='black', linewidth=2)
-        axs[1].set_title('Nutrient')
-        axs[1].set_ylabel('Nutrient (mmol N m$^{-3}$)')
+        if sum_PFT:
+            axs[0,0].plot(self.output_t, np.sum(self.output_B[:,self.PFT_P_bool], axis=1), label='Phytoplankton')
+            axs[0,0].plot(self.output_t, np.sum(self.output_B[:,self.PFT_Z_bool], axis=1), label='Zooplankton')
+            axs[0,0].plot(self.output_t, np.sum(self.output_B[:,self.PFT_F_bool], axis=1), label='Foraminifera')
+            axs[0,0].legend()                
+        else:
+            axs[0,0].plot(self.output_t, self.output_B[:,self.PFT_P_bool])
+            axs[0,0].plot(self.output_t, self.output_B[:,self.PFT_Z_bool])
+            axs[0,0].plot(self.output_t, self.output_B[:,self.PFT_F_bool])
+        
+        axs[0,0].set_title('Biomass')
+        axs[0,0].set_ylabel('Biomass (mmol N m$^{-3}$)')
 
-        axs[2].plot(self.output_t, self.output_size, color='black', linewidth=2)
-        axs[2].set_title('Community Size Mean')
-        axs[2].set_ylabel('Size (μm)')
+        axs[0,1].plot(self.output_t, self.output_N, linewidth=1)
+        axs[0,1].set_title('Nutrient')
+        axs[0,1].set_ylabel('Nutrient (mmol N m$^{-3}$)')
+
+        axs[1,0].plot(self.output_t, self.output_size, linewidth=1)
+        axs[1,0].set_title('Community Size Mean')
+        axs[1,0].set_ylabel('Size (μm)')
+
+        axs[1,1].plot(self.output_t, self.output_pft_richness, linewidth=1)
+        axs[1,1].set_title('PFT Richness')
+        axs[1,1].set_ylabel('Number of PFTs')
 
         plt.show()
         return axs
