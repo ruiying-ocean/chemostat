@@ -21,11 +21,11 @@ class Chemostat(ODE):
             data = tomllib.load(f)
 
         # set hyper config
-        for name, value in data.get('Hyper_Parameters', {}).items():
+        for name, value in data.get('parameters', {}).items():
             setattr(self, name, value)
 
         # set plankton structure
-        for name, value in data.get('Plankton', {}).items():
+        for name, value in data.get('settings', {}).items():
             setattr(self, name, value)            
 
         self.n_phytoplankton = len(self.esd_phytoplankton)
