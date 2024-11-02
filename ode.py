@@ -14,7 +14,7 @@ class ODE:
         ## y could be multi-dimension, but t must be 1-dimension
         print('>>> running ODE solver')
         sol = odeint(self.diff_eqn, y0, t, full_output=False, rtol=1e-3, atol=1e-9, hmax=28.0, h0=0.01, hmin=0.001)
-
+        print('<<< simulation complete')
         # return solver output to output arrays
         self.output_t = t
         ## first index is nutrient
