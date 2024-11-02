@@ -67,8 +67,11 @@ class ODE:
                             pref=np.sum(self.f[self.PFT_F_bool,i]*B[self.PFT_F_bool]**2) / np.sum(self.f[:,i]*B**2) 
                         if pref>1.0:
                             raise ValueError('pref>1, this should not happen')                            
+
                              
-                        graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR * pref                    
+                        graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR * pref
+
+                        graze = np.max(graze, 0)
                                                                 
                         dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
                             
@@ -76,18 +79,29 @@ class ODE:
                         
             elif self.PFT_F_bool[i]: # forams
                 F=np.sum(self.f[:,i]*B) # availability of prey
+                
                 if F>0.0:
                     PR= 1.0-np.exp(self.lamdaprey*F)                    
                     for jprey in range(self.n_phytoplankton): # loop over prey
                         graze = self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR 
-                                                                
+                        graze = np.max(graze, 0)
                         dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
                         dBdt[jprey]=dBdt[jprey]-(graze*B[i])
 
 
         self.Nuptake=Nuptake      
-        dBdt=dBdt+Nuptake-(B*self.m)-(self.K*B) -(B*self.resp*self.gamma_T)
+
+
+        dBdt=dBdt+Nuptake-(B*self.m)-(self.K*B) #-(B*self.resp*self.gamma_T)
         dNdt=self.K*(self.source_N-N) - np.sum(Nuptake)
+
+
+        if dBdt[i] < 1e-99:
+            dBdt[i] = 1e-99
+
+        if dNdt < 1e-99:
+            dNdt = 1e-99
+            Nuptake = 0.0
 
         return np.append(dNdt,dBdt)                    
 
@@ -113,11 +127,6 @@ class ODE:
         axs[2].plot(self.output_t, self.output_size, color='black', linewidth=2)
         axs[2].set_title('Community Size Mean')
         axs[2].set_ylabel('Size (μm)')
-
-        
-        
-
-        
 
         plt.show()
         return axs

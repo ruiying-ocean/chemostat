@@ -159,31 +159,37 @@ class Chemostat(ODE):
         ## group-specific values
         self.mumax= self._cal_mumax(self.pcmax,self.Vmax,self.Qmax, self.Qmin,self.deltaQ) * self.PFT_P
         self.kN = self._cal_kN(self.pcmax, self.kNO3,self.Vmax,self.Qmax,self.Qmin,self.deltaQ) * self.PFT_P
-        self.Gmax = self.Gmax * self.PFT_Z
+        ## set Gmax to 0 for phtyoplankton
+        self.Gmax = self.Gmax * (1-self.PFT_P)
+        
         self.m = self.mp * np.ones(self.n_pft)
         self.resp = self.resp_p * np.ones(self.n_pft)
         
-        for i in range(0,self.n_pft):
-            if self.PFT_F[i] == 1.0:
+        for i in range(self.n_pft):
+            if self.PFT_F_bool[i]:
                 self.Gmax[i]=self.Gmax[i] * self.cal_cost
-                self.m[i]=self.m[i] * self.cal_p
+                self.m[i]=self.m[i] * self.cal_pm
                 
-        # prey preference matrix
-        for jpred in range(0,self.n_pft):
-            for jprey in range(0,self.n_pft):
+        # prey preference matrix        
+        for jpred in range(self.n_pft):
+            if self.PFT_P_bool[jpred]:
+                continue
+            
+            for jprey in range(self.n_pft):
+                # not implemented in the paper
+                # if jpred == jprey:
+                #     continue
+                
                 self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_z,self.theta_opt)
-                
 
-        ## modify the grazing matrix
-        for i in range(0,self.n_pft):
-            ## no PFT eats itself
-            self.f[i,i] = 0.0
+                if self.PFT_F_bool[jpred] and self.PFT_Z_bool[jprey]:
+                    self.f[jprey,jpred] = 0.0
 
-            ## no phytoplankton predator
-            if self.PFT_P[i] == 1:
-                self.f[:,i] = 0.0
+                if self.PFT_F_bool[jpred] and self.PFT_F_bool[jprey]:
+                    self.f[jprey,jpred] = 0.0
 
-            ## foram does not eat zooplankton
-            if self.PFT_F[i] == 1:
-                for jprey in range(0,self.n_phytoplankton):
-                    self.f[jprey,i] = 0.0
+                if self.PFT_F_bool[jprey]:
+                    self.f[jprey,jpred] = self.f[jprey,jpred] * self.cal_pg
+
+            
+
