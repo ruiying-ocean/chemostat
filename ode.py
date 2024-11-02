@@ -92,7 +92,7 @@ class ODE:
         self.Nuptake=Nuptake      
 
 
-        dBdt=dBdt+Nuptake-(B*self.m)-(self.K*B) #-(B*self.resp*self.gamma_T)
+        dBdt=dBdt+Nuptake-(B*self.m)-(self.K*B) -(B*self.resp*self.gamma_T)
         dNdt=self.K*(self.source_N-N) - np.sum(Nuptake)
 
 
