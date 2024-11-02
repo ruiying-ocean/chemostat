@@ -35,8 +35,8 @@ K = 0.01  # dilution rate k for plankton washed out and nutrient supply in
 ### planktonic foraminifera's parameters ###
 sigma_f = 0.5 # standard deviation of planktonic foraminifera's prey preference
 cal_pm = 0.81 ## mortality scaling factor as cost of calcification
-cal_cost =0.5 ## growth rate scaling factor as cost of calcification
-cal_pg = 1.0 ## coefficient to grazing matrix
+cal_cost = 0.8 ## growth rate scaling factor as cost of calcification
+cal_pg = 0.7 ## coefficient to grazing matrix
 
 ## simulation-specific configuration
 nday = 1000 ## running time
@@ -60,4 +60,8 @@ esd_zooplankton = [6.25324015e+00,   7.87858890e+00,   9.92640000e+00,
     2.00103685e+02,   2.52114845e+02,   3.17644800e+02,   4.00207370e+02,
     5.04229690e+02,   6.35289600e+02,   8.00414740e+02,   1.00845938e+03,
     1.27057920e+03,1.60082948e+03]
-esd_foram = [1.98528000e+01]
+esd_foram = [1.98528000e+01, 1.98528000e+01, 2.50129606e+01,   3.15143556e+01,   3.97056000e+01,   5.00259212e+01,
+    6.30287112e+01, 1.00051842e+02,   1.26057422e+02,   1.58822400e+02,
+    2.00103685e+02,   2.52114845e+02,3.17644800e+02,   4.00207370e+02]
+
+foram_neg_dBdt = true

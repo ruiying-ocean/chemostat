@@ -99,8 +99,8 @@ class ODE:
         dNdt = np.max(dNdt, 0)
         Nuptake = 0 if dNdt < 0 else Nuptake
         ## foram can't have lose biomass (I know it is radiculouse, but that's the original code)
-        dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
-
+        if not self.foram_neg_dBdt:            
+            dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
         
 
         return np.append(dNdt,dBdt)
