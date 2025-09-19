@@ -6,6 +6,17 @@ It's forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosc
 
 * Quickstart
 
+- Install dependencies with =[uv](https://github.com/astral-sh/uv)=:
+#+begin_src sh
+    uv sync
+#+end_src
+
+- Run the default chemostat scenarios (plots will display):
+#+begin_src sh
+    uv run python run.py
+#+end_src
+
+- Use the library directly if you want programmatic control:
 #+begin_src python
     from chemostat import Chemostat
 
@@ -23,4 +34,4 @@ Grigoratou, M., Monteiro, F. M., Schmidt, D. N., Wilson, J. D., Ward, B. A., and
 Ward, B. A., Dutkiewicz, S., & Follows, M. J. (2014). Modelling spatial and temporal patterns in size-structured marine plankton communities: Top–down and bottom–up controls. Journal of Plankton Research, 36(1), https://doi.org/10/f5pg4b
 
 
-
+* Original manuscript can be found in gmd-11-4241-2018.pdf

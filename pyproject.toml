@@ -1,0 +1,20 @@
+[project]
+name = "chemostat"
+version = "0.1.0"
+description = "Trait-based chemostat plankton ecosystem model"
+authors = [{name = "chemostat developers"}]
+readme = "README.org"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "scipy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.uv]
+managed = true
