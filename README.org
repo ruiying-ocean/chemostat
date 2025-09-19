@@ -32,6 +32,3 @@ It's forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosc
 Grigoratou, M., Monteiro, F. M., Schmidt, D. N., Wilson, J. D., Ward, B. A., and Ridgwell, A.: A trait-based modelling approach to planktonic foraminifera ecology, Biogeosciences, 16, 1469–1492, https://doi.org/10.5194/bg-16-1469-2019, 2019.
 
 Ward, B. A., Dutkiewicz, S., & Follows, M. J. (2014). Modelling spatial and temporal patterns in size-structured marine plankton communities: Top–down and bottom–up controls. Journal of Plankton Research, 36(1), https://doi.org/10/f5pg4b
-
-
-* Original manuscript can be found in gmd-11-4241-2018.pdf
