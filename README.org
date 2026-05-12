@@ -13,8 +13,17 @@ It's forked from: https://github.com/mariagrigoratou/Grigoratouetal2019_Biogeosc
 
 - Run the default chemostat scenarios (plots will display):
 #+begin_src sh
-    uv run python run.py
+    uv run run.py
 #+end_src
+
+- Save figures to a directory instead of displaying them:
+#+begin_src sh
+    uv run run.py --scenario baseline --save-dir docs
+#+end_src
+
+Example output (=baseline= scenario, one line per PFT):
+
+[[file:docs/baseline.png]]
 
 - Use the library directly if you want programmatic control:
 #+begin_src python

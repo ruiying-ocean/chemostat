@@ -302,7 +302,7 @@ class Chemostat:
 
         return np.append(dNdt,dBdt)
 
-    def plot(self, sum_PFT=True):
+    def plot(self, sum_PFT=True, save_path=None):
         ### plot biomass, nutrient, size distribution
         plt.style.use('ggplot')
         fig, axs = plt.subplots(2,2, figsize=(8, 8), sharex=True, sharey=False, tight_layout=True)
@@ -336,5 +336,9 @@ class Chemostat:
         axs[1,1].set_title('PFT Richness')
         axs[1,1].set_ylabel('Number of PFTs')
 
-        plt.show()
+        if save_path is not None:
+            fig.savefig(save_path, dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
         return axs
