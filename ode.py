@@ -55,26 +55,27 @@ class ODE:
             if self.PFT_P_bool[i]: # phyto                
                 Nuptake[i]=self.gamma_l* self.gamma_T * self.mumax[i]*N/(self.kN[i]+N)*B[i]                             
                 
-            elif self.PFT_Z_bool[i]: # zoo                
-                F=np.sum(self.f[:,i]*B) # availability of prey                            
+            elif self.PFT_Z_bool[i]: # zoo
+                F=np.sum(self.f[:,i]*B) # availability of prey
                 if F>0.0:
-                    PR= 1.0-np.exp(self.lamdaprey*F)  
-                                        
-                    for jprey in range(self.n_pft): # loop over prey                        
+                    PR= 1.0-np.exp(self.lamdaprey*F)
+
+                    for jprey in range(self.n_pft): # loop over prey
+                        pr_eff = PR
                         if self.PFT_P_bool[jprey]:
                             pref=np.sum(self.f[self.PFT_P_bool,i]*B[self.PFT_P_bool]**2) / np.sum(self.f[:,i]*B**2)
                         elif self.PFT_Z_bool[jprey]:
                             pref=np.sum(self.f[self.PFT_Z_bool,i]*B[self.PFT_Z_bool]**2) / np.sum(self.f[:,i]*B**2)
                         elif self.PFT_F_bool[jprey]:
-                            PR = 1.0 #no prey refuge
-                            pref=np.sum(self.f[self.PFT_F_bool,i]*B[self.PFT_F_bool]**2) / np.sum(self.f[:,i]*B**2) 
+                            pr_eff = 1.0 # no prey refuge for foram prey
+                            pref=np.sum(self.f[self.PFT_F_bool,i]*B[self.PFT_F_bool]**2) / np.sum(self.f[:,i]*B**2)
                         if pref>1.0:
-                            raise ValueError('pref>1, this should not happen')                            
+                            raise ValueError('pref>1, this should not happen')
 
-                             
-                        graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR * pref
 
-                        graze = np.max(graze, 0)
+                        graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * pr_eff * pref
+
+                        graze = np.maximum(graze, 0)
                                                                 
                         dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
                             
@@ -86,8 +87,8 @@ class ODE:
                 if F>0.0:
                     PR= 1.0-np.exp(self.lamdaprey*F)                    
                     for jprey in range(self.n_phytoplankton): # loop over prey
-                        graze = self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR 
-                        graze = np.max(graze, 0)
+                        graze = self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR
+                        graze = np.maximum(graze, 0)
                         dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
                         dBdt[jprey]=dBdt[jprey]-(graze*B[i])
 
@@ -99,8 +100,7 @@ class ODE:
         dNdt=self.K*(self.source_N-N) - np.sum(Nuptake)
 
 
-        dNdt = np.max(dNdt, 0)
-        Nuptake = 0 if dNdt < 0 else Nuptake
+        dNdt = np.maximum(dNdt, 0)
         ## foram can't have lose biomass (I know it is radiculouse, but that's the original code)
         if not self.foram_neg_dBdt:            
             dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
