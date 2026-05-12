@@ -225,82 +225,76 @@ class Chemostat:
         ## calculate diversity
         self.output_pft_richness  = np.sum(self.output_B > self.qnitrogen, axis=1)
 
+    def _phyto_uptake(self, N, B, gamma_T):
+        "Monod nitrate uptake, light- and temperature-scaled; zero for non-phytoplankton."
+        out = np.zeros(self.n_pft)
+        p = self.PFT_P_bool
+        out[p] = self.gamma_l * gamma_T * self.mumax[p] * N / (self.kN[p] + N) * B[p]
+        return out
+
+    def _zoo_graze_one(self, i, B, gamma_T, dBdt):
+        "Accumulate grazing contribution of zooplankton predator i into dBdt (size-selective with prey switching)."
+        f_i = self.f[:, i]
+        F = np.sum(f_i * B)
+        if F <= 0.0:
+            return
+        PR = 1.0 - np.exp(self.lamdaprey * F)
+        denom = np.sum(f_i * B ** 2)
+
+        # prey-switching weights: same value for every prey within a category
+        pref = np.zeros(self.n_pft)
+        pref[self.PFT_P_bool] = np.sum(f_i[self.PFT_P_bool] * B[self.PFT_P_bool] ** 2) / denom
+        pref[self.PFT_Z_bool] = np.sum(f_i[self.PFT_Z_bool] * B[self.PFT_Z_bool] ** 2) / denom
+        pref[self.PFT_F_bool] = np.sum(f_i[self.PFT_F_bool] * B[self.PFT_F_bool] ** 2) / denom
+        if np.any(pref > 1.0):
+            raise ValueError('pref>1, this should not happen')
+
+        # foram prey ignore the refuge term
+        pr_eff = np.where(self.PFT_F_bool, 1.0, PR)
+
+        graze = self.Gmax[i] * gamma_T * f_i * B / (F + self.knprey) * pr_eff * pref
+        graze = np.maximum(graze, 0.0)
+
+        dBdt[i] += np.sum(graze) * B[i] * self.lamda
+        dBdt -= graze * B[i]
+
+    def _foram_graze_one(self, i, B, gamma_T, dBdt):
+        "Accumulate grazing contribution of foram predator i into dBdt (phytoplankton-only, no switching)."
+        f_i = self.f[:, i]
+        F = np.sum(f_i * B)
+        if F <= 0.0:
+            return
+        PR = 1.0 - np.exp(self.lamdaprey * F)
+        # f_i is already zero for non-phytoplankton prey of forams (see _assign_plank_par)
+        graze = self.Gmax[i] * gamma_T * f_i * B / (F + self.knprey) * PR
+        graze = np.maximum(graze, 0.0)
+        dBdt[i] += np.sum(graze) * B[i] * self.lamda
+        dBdt -= graze * B[i]
+
     def diff_eqn(self, y, t):
-        """differential equation fed to odeint solver
-        y: state variable (including both N and B)
-        t: time
-        """
-
-        ## state variable
-        N = np.zeros(1)
-        B = np.zeros(self.n_pft)
-        Nuptake = np.zeros(self.n_pft)
-        dBdt = np.zeros(self.n_pft)
-        dNdt = np.zeros(1)
-
-        ## initial condition
+        """ODE RHS fed to odeint. y = [N, B_0, ..., B_{n_pft-1}]; returns dy/dt."""
         N = y[0]
         B = y[1:self.n_pft + 1]
 
-        self.gamma_T = np.exp(self.R * (self.T - self.T_ref))
+        gamma_T = np.exp(self.R * (self.T - self.T_ref))
 
+        Nuptake = self._phyto_uptake(N, B, gamma_T)
 
-        for i in range(self.n_pft):
-            if self.PFT_P_bool[i]: # phyto
-                Nuptake[i]=self.gamma_l* self.gamma_T * self.mumax[i]*N/(self.kN[i]+N)*B[i]
+        dBdt = np.zeros(self.n_pft)
+        for i in np.flatnonzero(self.PFT_Z_bool):
+            self._zoo_graze_one(i, B, gamma_T, dBdt)
+        for i in np.flatnonzero(self.PFT_F_bool):
+            self._foram_graze_one(i, B, gamma_T, dBdt)
 
-            elif self.PFT_Z_bool[i]: # zoo
-                F=np.sum(self.f[:,i]*B) # availability of prey
-                if F>0.0:
-                    PR= 1.0-np.exp(self.lamdaprey*F)
-
-                    for jprey in range(self.n_pft): # loop over prey
-                        pr_eff = PR
-                        if self.PFT_P_bool[jprey]:
-                            pref=np.sum(self.f[self.PFT_P_bool,i]*B[self.PFT_P_bool]**2) / np.sum(self.f[:,i]*B**2)
-                        elif self.PFT_Z_bool[jprey]:
-                            pref=np.sum(self.f[self.PFT_Z_bool,i]*B[self.PFT_Z_bool]**2) / np.sum(self.f[:,i]*B**2)
-                        elif self.PFT_F_bool[jprey]:
-                            pr_eff = 1.0 # no prey refuge for foram prey
-                            pref=np.sum(self.f[self.PFT_F_bool,i]*B[self.PFT_F_bool]**2) / np.sum(self.f[:,i]*B**2)
-                        if pref>1.0:
-                            raise ValueError('pref>1, this should not happen')
-
-
-                        graze=self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * pr_eff * pref
-
-                        graze = np.maximum(graze, 0)
-
-                        dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
-
-                        dBdt[jprey]=dBdt[jprey]-(graze*B[i])
-
-            elif self.PFT_F_bool[i]: # forams
-                F=np.sum(self.f[:,i]*B) # availability of prey
-
-                if F>0.0:
-                    PR= 1.0-np.exp(self.lamdaprey*F)
-                    for jprey in range(self.n_phytoplankton): # loop over prey
-                        graze = self.Gmax[i]*self.gamma_T*(self.f[jprey,i]*B[jprey]/(F+self.knprey)) * PR
-                        graze = np.maximum(graze, 0)
-                        dBdt[i]=dBdt[i]+(graze*B[i]*self.lamda)
-                        dBdt[jprey]=dBdt[jprey]-(graze*B[i])
-
-
-        self.Nuptake=Nuptake
-
-
-        dBdt=dBdt+Nuptake-(B*self.m)-(self.K*B) -(B*self.resp*self.gamma_T)
-        dNdt=self.K*(self.source_N-N) - np.sum(Nuptake)
-
+        dBdt += Nuptake - B * self.m - self.K * B - B * self.resp * gamma_T
+        dNdt = self.K * (self.source_N - N) - np.sum(Nuptake)
 
         dNdt = np.maximum(dNdt, 0)
-        ## foram can't have lose biomass (I know it is radiculouse, but that's the original code)
+        ## foram can't lose biomass (kept for parity with the original code)
         if not self.foram_neg_dBdt:
             dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
 
-
-        return np.append(dNdt,dBdt)
+        return np.append(dNdt, dBdt)
 
     def plot(self, sum_PFT=True, save_path=None):
         ### plot biomass, nutrient, size distribution
