@@ -47,6 +47,14 @@ dt = 1 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
 
+[solver]
+method = "LSODA"        # one of: LSODA, BDF, Radau, RK45, RK23, DOP853
+rtol = 1e-3
+atol = 1e-9
+max_step = 28.0
+first_step = 0.01
+min_step = 0.001        # LSODA only; ignored for other methods
+
 [settings]
 foram_neg_dBdt = true
 cannibalism = false

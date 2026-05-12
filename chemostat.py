@@ -1,7 +1,7 @@
 import numpy as np
 import tomllib
 import matplotlib.pyplot as plt
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
 
 class Chemostat:
     """
@@ -25,7 +25,18 @@ class Chemostat:
 
         # set plankton structure
         for name, value in data.get('settings', {}).items():
-            setattr(self, name, value)            
+            setattr(self, name, value)
+
+        # solver options (optional section; fall back to LSODA defaults)
+        self.solver_opts = {
+            'method': 'LSODA',
+            'rtol': 1e-3,
+            'atol': 1e-9,
+            'max_step': 28.0,
+            'first_step': 0.01,
+            'min_step': 0.001,
+            **data.get('solver', {}),
+        }
 
         self.n_phytoplankton = len(self.esd_phytoplankton)
         self.n_zooplankton = len(self.esd_zooplankton)
@@ -204,17 +215,28 @@ class Chemostat:
         y0 = np.append(self.N0, self.B0)
 
         ### call solver ###
-        ## diff_eqn is the function describing the system, in the form of f(y,t);
-        ## y could be multi-dimension, but t must be 1-dimension
-        print('>>> running ODE solver')
-        sol = odeint(self.diff_eqn, y0, t, full_output=False, rtol=1e-3, atol=1e-9, hmax=28.0, h0=0.01, hmin=0.001)
+        ## diff_eqn keeps the legacy f(y, t) signature; solve_ivp expects f(t, y), so wrap it.
+        # min_step is LSODA-only — drop it for other methods so solve_ivp doesn't raise.
+        kwargs = dict(self.solver_opts)
+        if kwargs.get('method') != 'LSODA':
+            kwargs.pop('min_step', None)
+        print(f">>> running ODE solver (solve_ivp, {kwargs['method']})")
+        sol = solve_ivp(
+            lambda t, y: self.diff_eqn(y, t),
+            (t[0], t[-1]),
+            y0,
+            t_eval=t,
+            **kwargs,
+        )
+        if not sol.success:
+            raise RuntimeError(f'ODE solver failed: {sol.message}')
         print('<<< simulation complete')
-        # return solver output to output arrays
-        self.output_t = t
+        # return solver output to output arrays; solve_ivp gives y of shape (n_states, n_t)
+        self.output_t = sol.t
         ## first index is nutrient
-        self.output_N[:, 0] = sol[:, 0]
+        self.output_N[:, 0] = sol.y[0, :]
         ## the others are plankton
-        self.output_B[:, :] = sol[:, 1:self.n_pft+1]
+        self.output_B[:, :] = sol.y[1:self.n_pft+1, :].T
 
         ## weighted mean diameter
         ## calculate biomass proportion of each PFT
