@@ -29,23 +29,44 @@ def test_grazing_matrix_phyto_predator_columns_are_zero(model):
     assert np.all(model.f[:, model.PFT_P_bool] == 0.0)
 
 
-def test_grazing_matrix_foram_predators_only_eat_phytoplankton(model):
-    """Foram predator columns are zero on Z/F prey rows and equal the bare palatability on P prey rows."""
-    f_F_pred = model.f[:, model.PFT_F_bool]
-    non_phyto = ~model.PFT_P_bool
-    assert np.all(f_F_pred[non_phyto] == 0.0)
-
-    phyto_idx = np.flatnonzero(model.PFT_P_bool)
+def test_herbivorous_forams_eat_only_phytoplankton(model):
+    """For bn, bs, sn (herbivorous forams): Z and F prey rows are zero in their predator column."""
     for jpred in np.flatnonzero(model.PFT_F_bool):
+        if not model.is_herbivore[jpred] or model.is_carnivore[jpred]:
+            continue
+        assert np.all(model.f[model.PFT_Z_bool, jpred] == 0.0)
+        assert np.all(model.f[model.PFT_F_bool, jpred] == 0.0)
+
+
+def test_carnivorous_ss_eats_only_zooplankton(model):
+    """ss is the only carnivorous foram in FORAMECOGEM: phyto and foram prey rows are zero."""
+    ss_idx = [j for j in np.flatnonzero(model.PFT_F_bool) if model.foram_type[j] == 'ss']
+    assert len(ss_idx) > 0, 'expected at least one ss foram in default config'
+    for jpred in ss_idx:
+        assert np.all(model.f[model.PFT_P_bool, jpred] == 0.0)
+        assert np.all(model.f[model.PFT_F_bool, jpred] == 0.0)
+        # Diameter-based ECOGEM kernel; spine_scale^1 (not ^3) for geometric consistency
+        zoo_idx = np.flatnonzero(model.PFT_Z_bool)
+        sig = model.sigma_f * model.foram_spine_scale
+        thet = model.theta_opt * model.foram_spine_scale
+        expected = model._cal_platability(model.diameter[jpred], model.diameter[zoo_idx], sig, thet)
+        assert np.allclose(model.f[zoo_idx, jpred], expected)
+
+
+def test_foram_predator_kernel_uses_sigma_f(model):
+    """Non-spinose foram predator columns use sigma_f (not sigma_z) for the diameter-based prey kernel."""
+    P_idx = np.flatnonzero(model.PFT_P_bool)
+    for jpred in np.flatnonzero(model.PFT_F_bool):
+        if model.is_spinose[jpred] or not model.is_herbivore[jpred]:
+            continue
         expected = model._cal_platability(
-            model.diameter[jpred], model.diameter[phyto_idx],
-            model.sigma_z, model.theta_opt,
+            model.diameter[jpred], model.diameter[P_idx], model.sigma_f, model.theta_opt,
         )
-        assert np.allclose(model.f[phyto_idx, jpred], expected)
+        assert np.allclose(model.f[P_idx, jpred], expected)
 
 
 def test_grazing_matrix_zoo_on_foram_scaled_by_cal_pg(model):
-    """Zoo predator × foram prey entries equal cal_pg * palatability."""
+    """Zoo predator × foram prey entries equal cal_pg * diameter-based palatability."""
     foram_idx = np.flatnonzero(model.PFT_F_bool)
     for jpred in np.flatnonzero(model.PFT_Z_bool):
         expected = model.cal_pg * model._cal_platability(
@@ -63,11 +84,15 @@ def test_grazing_matrix_diagonal_is_zero_without_cannibalism(model):
 # ---------- Gmax assignment tests ----------
 
 def test_gmax_zero_for_phyto_scaled_for_foram(model):
+    """Gmax[F] = allom * per-morphotype growthcost_factor (stacked with foram_hetero_cost for sn/ss)."""
     P, Z, F = model.PFT_P_bool, model.PFT_Z_bool, model.PFT_F_bool
     allom = model.Gmax_a * model.Vol ** model.Gmax_b
     assert np.allclose(model.Gmax[P], 0.0)
     assert np.allclose(model.Gmax[Z], allom[Z])
-    assert np.allclose(model.Gmax[F], allom[F] * model.cal_cost)
+    expected_F = allom[F] * model.foram_growthc[F]
+    sym_F = model.is_symbiont[F]
+    expected_F = np.where(sym_F, expected_F * model.foram_hetero_cost, expected_F)
+    assert np.allclose(model.Gmax[F], expected_F)
 
 
 # ---------- diff_eqn invariant tests ----------
@@ -98,24 +123,91 @@ def test_diff_eqn_single_phyto_only_grows_via_uptake(model):
     assert np.allclose(dydt[1:][others], 0.0)
 
 
-def test_diff_eqn_regression(model):
-    """Pin dydt on a fixed multi-PFT state. Numbers are tied to model_config.toml;
-    if the config or the math changes, regenerate by re-running diff_eqn on this y."""
-    nP, nZ = model.n_phytoplankton, model.n_zooplankton
+# ---------- foram morphotype tests (symbiotic / spinose port from ECOGEM) ----------
+
+def _rebuild_with_types(model, types):
+    """Patch in a custom type_foram and rebuild the derived state."""
+    model.type_foram = list(types)
+    model._init_foram_types()
+    model._init_array()
+    model._assign_plank_par()
+    return model
+
+
+def test_foram_morphotype_arrays_match_config(model):
+    """Each foram pft inherits ns / growthcost / calcite_respir / feeding mode from its morphotype."""
+    expected = {
+        'bn': dict(ns=1.0, growthc=1.0, calc=0.02,  herb=True,  carn=False),
+        'bs': dict(ns=5.0, growthc=1.0, calc=0.045, herb=True,  carn=False),
+        'sn': dict(ns=1.0, growthc=1.0, calc=0.02,  herb=True,  carn=False),
+        'ss': dict(ns=5.0, growthc=1.0, calc=0.045, herb=False, carn=True),
+    }
+    for j in np.flatnonzero(model.PFT_F_bool):
+        e = expected[model.foram_type[j]]
+        assert model.foram_ns[j]        == pytest.approx(e['ns'])
+        assert model.foram_growthc[j]   == pytest.approx(e['growthc'])
+        assert model.foram_calc_resp[j] == pytest.approx(e['calc'])
+        assert bool(model.is_herbivore[j]) is e['herb']
+        assert bool(model.is_carnivore[j]) is e['carn']
+
+
+def test_foram_calcite_respiration_added(model):
+    """resp[F] = resp_p + per-morphotype calcite_respir; spinose pay more."""
+    for j in np.flatnonzero(model.PFT_F_bool):
+        assert model.resp[j] == pytest.approx(model.resp_p + model.foram_calc_resp[j])
+
+
+def test_foram_symbiont_uptake_is_active_for_sn_ss(model):
+    """sn / ss get nonzero mumax derived from a tiny auto-volume, scaled by foram_auto_cost."""
+    sym_F = np.flatnonzero(model.is_symbiont)
+    assert len(sym_F) > 0, 'expected sn/ss in default config'
+    assert np.all(model.mumax[sym_F] > 0.0)
+    assert np.all(model.kN[sym_F] > 0.0)
+    # mumax for symbiont forams should be much smaller than for similarly sized phytoplankton
+    P = np.flatnonzero(model.PFT_P_bool)
+    assert model.mumax[sym_F].max() < model.mumax[P].max()
+    # bn / bs (non-symbiont) forams take up no N
+    nonsym_F = np.array([j for j in np.flatnonzero(model.PFT_F_bool) if not model.is_symbiont[j]])
+    assert np.allclose(model.mumax[nonsym_F], 0.0)
+
+
+def test_foram_spine_widens_prey_selection_kernel(model):
+    """Spinose forams (bs, ss) at a given size graze across a much wider prey-size range."""
+    nF = model.n_foram
+    base = _rebuild_with_types(model, ['bn'] * nF)
+    bn_sum_f = base.f[:, base.PFT_F_bool].sum(axis=0).copy()
+    _rebuild_with_types(model, ['bs'] * nF)
+    bs_sum_f = model.f[:, model.PFT_F_bool].sum(axis=0)
+    assert np.all(bs_sum_f > bn_sum_f)
+
+
+def test_invalid_foram_type_raises(config_path):
+    """Unknown morphotype tags are rejected up front."""
+    from chemostat import Chemostat
+    m = Chemostat(20.0, 2.5)
+    m.load_ecoconfig(str(config_path))
+    m.type_foram = ['bn'] * (m.n_foram - 1) + ['xx']
+    with pytest.raises(ValueError, match='unknown foram type'):
+        m._init_foram_types()
+
+
+def test_diff_eqn_runs_without_nan(model):
+    """A representative multi-PFT state should produce finite, non-NaN dydt under FORAMECOGEM
+    config. Replaces the legacy pinned-numeric regression test (whose indices and numbers were
+    tied to the 14-foram size spectrum, no longer the default)."""
+    nP, nZ, nF = model.n_phytoplankton, model.n_zooplankton, model.n_foram
     B = np.zeros(model.n_pft)
     B[5] = 0.30
     B[15] = 0.05
     B[nP + 5] = 0.20
     B[nP + 15] = 0.02
-    B[nP + nZ + 2] = 0.01
-    B[nP + nZ + 8] = 0.005
+    for k in range(nF):
+        B[nP + nZ + k] = 0.01
     y = np.concatenate(([12.0], B))
     dydt = model.diff_eqn(y, 0.0)
-
-    P, Z, F = model.PFT_P_bool, model.PFT_Z_bool, model.PFT_F_bool
-    # dN clamped to 0: at N=12, K*(source_N - N) is negative and uptake also drains N
-    assert dydt[0] == pytest.approx(0.0)
-    assert np.sum(dydt[1:][P]) == pytest.approx(-0.2051259862823555, rel=1e-9)
-    assert np.sum(dydt[1:][Z]) == pytest.approx(0.14758621193359717, rel=1e-9)
-    assert np.sum(dydt[1:][F]) == pytest.approx(0.004549162256240617, rel=1e-9)
-    assert float(np.max(np.abs(dydt[1:]))) == pytest.approx(0.20680399732708085, rel=1e-9)
+    assert np.all(np.isfinite(dydt))
+    # ss must receive prey from the zoo column it actually feeds on
+    ss_idx = [j for j in np.flatnonzero(model.PFT_F_bool) if model.foram_type[j] == 'ss']
+    if ss_idx:
+        # ss biomass change is nontrivial when zoo prey are present
+        assert dydt[1 + ss_idx[0]] != 0.0

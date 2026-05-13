@@ -27,6 +27,9 @@ class Chemostat:
         for name, value in data.get('settings', {}).items():
             setattr(self, name, value)
 
+        # per-morphotype FORAMECOGEM calibration (.zoo file row per type)
+        self.foram_morphotype = data.get('foram_morphotype', {})
+
         # solver options (optional section; fall back to LSODA defaults)
         self.solver_opts = {
             'method': 'LSODA',
@@ -70,11 +73,57 @@ class Chemostat:
         self.PFT_P_bool = (self.PFT_P == 1)
         self.PFT_Z_bool = (self.PFT_Z == 1)
         self.PFT_F_bool = (self.PFT_F == 1)
-                       
-            
+
+        self._init_foram_types()
 
         self._init_array()
         self._assign_plank_par()
+
+    def _init_foram_types(self):
+        """Build per-pft foram morphotype masks (spinose / symbiont-bearing).
+
+        Each foram entry has a type tag: 'bn' (barren non-spinose), 'bs' (barren spinose),
+        'sn' (symbiont non-spinose), 'ss' (symbiont spinose). Tags drive the spine
+        prey-selection kernel and the symbiont autotrophic uptake added below.
+        """
+        # backward compat: if not specified, treat all forams as legacy 'bn'.
+        if not hasattr(self, 'type_foram'):
+            self.type_foram = ['bn'] * self.n_foram
+        if len(self.type_foram) != self.n_foram:
+            raise ValueError(
+                f'type_foram has {len(self.type_foram)} entries but esd_foram has {self.n_foram}'
+            )
+        valid = {'bn', 'bs', 'sn', 'ss'}
+        bad = [t for t in self.type_foram if t not in valid]
+        if bad:
+            raise ValueError(f'unknown foram type(s): {bad}. valid: {sorted(valid)}')
+
+        self.foram_type = np.array([''] * self.n_pft, dtype=object)
+        foram_idx = np.flatnonzero(self.PFT_F_bool)
+        for k, j in enumerate(foram_idx):
+            self.foram_type[j] = self.type_foram[k]
+
+        self.is_spinose = np.array([t in ('bs', 'ss') for t in self.foram_type], dtype=bool)
+        self.is_symbiont = np.array([t in ('sn', 'ss') for t in self.foram_type], dtype=bool)
+        # phytoplankton + symbiont-bearing forams take up N
+        self.can_uptake_bool = self.PFT_P_bool | self.is_symbiont
+
+        # per-pft FORAMECOGEM calibration arrays (col 02, 03, 06, 09, 10 of FORAMECOGEM.zoo).
+        # Defaults reproduce the legacy heterotroph-only foram: herbivory only, ns=1, no spine cost.
+        self.foram_ns        = np.ones(self.n_pft)        # prey-switching exponent (col 06)
+        self.foram_growthc   = np.ones(self.n_pft)        # heterotrophy growth-cost factor (col 09)
+        self.foram_calc_resp = np.zeros(self.n_pft)       # extra calcite respiration (col 10)
+        self.is_herbivore    = np.zeros(self.n_pft, dtype=bool)
+        self.is_carnivore    = np.zeros(self.n_pft, dtype=bool)
+
+        for j in foram_idx:
+            t = self.foram_type[j]
+            cfg = self.foram_morphotype.get(t, {})
+            self.foram_ns[j]        = cfg.get('ns', 1.0)
+            self.foram_growthc[j]   = cfg.get('growthcost_factor', 1.0)
+            self.foram_calc_resp[j] = cfg.get('calcite_respir', 0.0)
+            self.is_herbivore[j]    = bool(cfg.get('herbivory', True))
+            self.is_carnivore[j]    = bool(cfg.get('carnivory', False))
 
     def _init_array(self):
         "initialise arrays for storing parameters and output data"
@@ -173,32 +222,85 @@ class Chemostat:
         self.kN = self._cal_kN(self.pcmax, self.kNO3,self.Vmax,self.Qmax,self.Qmin,self.deltaQ) * self.PFT_P
         ## set Gmax to 0 for phtyoplankton
         self.Gmax = self.Gmax * (1-self.PFT_P)
-        
+
+        # Symbiont-bearing forams (sn, ss) get autotrophic uptake derived from a tiny
+        # "auto volume" V*scale^3 representing the symbiont biomass living in the host.
+        # See ecogem_data.f90:553-586 — uptake traits use auto_volume rather than host volume,
+        # and the result is multiplied by foram_auto_cost (energetic penalty of hosting).
+        sym = self.is_symbiont
+        if np.any(sym):
+            auto_vol = self.Vol[sym] * self.foram_symbiont_esd_scale ** 3
+            Qmax_s = self._cal_allom_trait(self.Qmax_a, self.Qmax_b, auto_vol)
+            Qmin_s = self._cal_allom_trait(self.Qmin_a, self.Qmin_b, auto_vol)
+            dQ_s   = Qmax_s - Qmin_s
+            Vmax_s = self._cal_allom_trait(self.Vmax_a, self.Vmax_b, auto_vol)
+            kNO3_s = self._cal_allom_trait(self.kNO3_a, self.kNO3_b, auto_vol)
+            # symbiont auto_vol is tiny so its diameter falls in the smallest pcmax_a bucket
+            pcmax_s = 1.0 * auto_vol ** self.pcmax_b
+            self.mumax[sym] = self._cal_mumax(pcmax_s, Vmax_s, Qmax_s, Qmin_s, dQ_s) * self.foram_auto_cost
+            self.kN[sym]    = self._cal_kN(pcmax_s, kNO3_s, Vmax_s, Qmax_s, Qmin_s, dQ_s)
+
         self.m = self.mp * np.ones(self.n_pft)
         self.resp = self.resp_p * np.ones(self.n_pft)
-        
+
         for i in range(self.n_pft):
             if self.PFT_F_bool[i]:
-                self.Gmax[i]=self.Gmax[i] * self.cal_cost
-                self.m[i]=self.m[i] * self.cal_pm
-                
-        # prey preference matrix        
+                # universal foram costs from FORAMECOGEM.zoo cols 07 (mortality protection)
+                # and 09 (heterotrophy growth-cost factor). cal_pm replaces the old cal_cost
+                # mechanism (now growthcost_factor is per-morphotype).
+                self.Gmax[i] = self.Gmax[i] * self.foram_growthc[i]
+                self.m[i]    = self.m[i] * self.cal_pm
+                # extra respiration cost for building calcite test (col 10) — spinose pay more
+                self.resp[i] = self.resp[i] + self.foram_calc_resp[i]
+            # symbiont-bearing forams pay an additional heterotrophic cost
+            # (ecogem_data.f90:558 — heterotrophy *= symbiont_hetero_cost for sn/ss)
+            if self.is_symbiont[i]:
+                self.Gmax[i] = self.Gmax[i] * self.foram_hetero_cost
+
+        # prey preference matrix
         for jpred in range(self.n_pft):
             if self.PFT_P_bool[jpred]:
                 continue
-            
+
+            if self.PFT_F_bool[jpred]:
+                # ECOGEM kernel is diameter-based (Ward et al. 2018): theta_opt and sigma
+                # are in log-diameter-ratio units. foram_spine_scale is a diameter scaling
+                # (spines extend predator diameter by spine_scale), so we apply spine_scale^1
+                # — the geometrically correct multiplier for a diameter-based kernel.
+                # NOTE: FORAMECOGEM's Fortran code uses spine_scale^3, which is wrong:
+                # it applies a volume scaling to diameter-ratio parameters. We deliberately
+                # diverge from that bug.
+                sigma_pred = self.sigma_f
+                theta_pred = self.theta_opt
+                if self.is_spinose[jpred]:
+                    sigma_pred = sigma_pred * self.foram_spine_scale
+                    theta_pred = theta_pred * self.foram_spine_scale
+            else:
+                # zooplankton predator: keep Grigoratou et al. kernel width
+                sigma_pred = self.sigma_z
+                theta_pred = self.theta_opt
+
             for jprey in range(self.n_pft):
-                
-                self.f[jprey,jpred] = self._cal_platability(self.diameter[jpred],self.diameter[jprey],self.sigma_z,self.theta_opt)
+                # Diameter-based kernel (ECOGEM / Ward et al. 2018): predator-prey
+                # palatability is a Gaussian on log(diameter ratio).
+                self.f[jprey, jpred] = self._cal_platability(
+                    self.diameter[jpred], self.diameter[jprey], sigma_pred, theta_pred,
+                )
 
-                if self.PFT_F_bool[jpred] and self.PFT_Z_bool[jprey]:
-                    self.f[jprey,jpred] = 0.0
+                # zoo predator x foram prey: scale by foram palatability (cal_pg)
+                if self.PFT_Z_bool[jpred] and self.PFT_F_bool[jprey]:
+                    self.f[jprey, jpred] *= self.cal_pg
 
-                if self.PFT_F_bool[jpred] and self.PFT_F_bool[jprey]:
-                    self.f[jprey,jpred] = 0.0
-
-                if self.PFT_F_bool[jprey]:
-                    self.f[jprey,jpred] = self.f[jprey,jpred] * self.cal_pg
+            if self.PFT_F_bool[jpred]:
+                # apply per-morphotype feeding mode (FORAMECOGEM.zoo cols 02, 03):
+                #   herbivory=t -> can eat phyto; carnivory=t -> can eat zoo
+                # ss is exclusively carnivorous (herbivory=f, carnivory=t).
+                if not self.is_herbivore[jpred]:
+                    self.f[self.PFT_P_bool, jpred] = 0.0
+                if not self.is_carnivore[jpred]:
+                    self.f[self.PFT_Z_bool, jpred] = 0.0
+                # forams never eat forams (ecogem_data.f90:653)
+                self.f[self.PFT_F_bool, jpred] = 0.0
 
             
 
@@ -248,10 +350,16 @@ class Chemostat:
         self.output_pft_richness  = np.sum(self.output_B > self.qnitrogen, axis=1)
 
     def _phyto_uptake(self, N, B, gamma_T):
-        "Monod nitrate uptake, light- and temperature-scaled; zero for non-phytoplankton."
+        """Monod nitrate uptake for phytoplankton and symbiont-bearing forams (sn, ss).
+
+        Phytoplankton use the depth-averaged light term gamma_l. Symbiont-bearing
+        forams live in the sunlit photic zone, so they use gamma_l_symbiont
+        (default 1.0 = surface light, no depth averaging).
+        """
         out = np.zeros(self.n_pft)
-        p = self.PFT_P_bool
-        out[p] = self.gamma_l * gamma_T * self.mumax[p] * N / (self.kN[p] + N) * B[p]
+        light = np.where(self.is_symbiont, self.gamma_l_symbiont, self.gamma_l)
+        u = self.can_uptake_bool
+        out[u] = light[u] * gamma_T * self.mumax[u] * N / (self.kN[u] + N) * B[u]
         return out
 
     def _zoo_graze_one(self, i, B, gamma_T, dBdt):
@@ -281,14 +389,31 @@ class Chemostat:
         dBdt -= graze * B[i]
 
     def _foram_graze_one(self, i, B, gamma_T, dBdt):
-        "Accumulate grazing contribution of foram predator i into dBdt (phytoplankton-only, no switching)."
+        """Accumulate grazing contribution of foram predator i into dBdt.
+
+        Generalised to per-morphotype prey-switching exponent ns (FORAMECOGEM.zoo col 06):
+            graze_j = total_rate * (f_j * B_j^ns) / sum_k(f_k * B_k^ns)
+        where total_rate is the Holling type II response on linearly weighted prey.
+        ns=1 reproduces the legacy (no-switching) formulation; ns=5 (bs, ss) concentrates
+        feeding on the dominant prey within the predator's allowed prey set.
+        """
         f_i = self.f[:, i]
-        F = np.sum(f_i * B)
-        if F <= 0.0:
+        F_total = np.sum(f_i * B)
+        if F_total <= 0.0:
             return
-        PR = 1.0 - np.exp(self.lamdaprey * F)
-        # f_i is already zero for non-phytoplankton prey of forams (see _assign_plank_par)
-        graze = self.Gmax[i] * gamma_T * f_i * B / (F + self.knprey) * PR
+        PR = 1.0 - np.exp(self.lamdaprey * F_total)
+
+        ns = self.foram_ns[i]
+        # B can dip slightly negative during ODE internal steps; (-x)**ns with float ns
+        # returns NaN. Clip to zero before raising to the switching exponent.
+        B_pos = np.maximum(B, 0.0)
+        B_ns = B_pos ** ns
+        W = np.sum(f_i * B_ns)
+        if W <= 0.0:
+            return
+
+        total_rate = self.Gmax[i] * gamma_T * F_total / (F_total + self.knprey) * PR
+        graze = total_rate * (f_i * B_ns) / W
         graze = np.maximum(graze, 0.0)
         dBdt[i] += np.sum(graze) * B[i] * self.lamda
         dBdt -= graze * B[i]
