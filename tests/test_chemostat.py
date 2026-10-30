@@ -136,6 +136,22 @@ def test_diff_eqn_nitrate_falls_when_uptake_exceeds_supply(model):
     assert uptake > 0.0
     assert dydt[0] == pytest.approx(-uptake)
 
+
+def test_zoo_grazing_survives_rounding_when_one_prey_category_dominates(model):
+    """Phyto-only prey makes the P preference 1 up to rounding; that must not raise, and
+    the zoo predator's gain must equal the sum of prey losses times assimilation."""
+    i = np.flatnonzero(model.PFT_Z_bool)[10]
+    P = np.flatnonzero(model.PFT_P_bool)
+    rng = np.random.default_rng(0)
+    for _ in range(500):
+        B = np.zeros(model.n_pft)
+        B[P] = rng.random(P.size) * rng.choice([1e-3, 1.0, 1e3])
+        B[i] = 0.1
+        dBdt = np.zeros(model.n_pft)
+        model._zoo_graze_one(i, B, 1.0, dBdt)
+        loss = -dBdt[np.arange(model.n_pft) != i].sum()
+        assert dBdt[i] == pytest.approx(loss * model.lamda)
+
 # ---------- foram morphotype tests (symbiotic / spinose port from ECOGEM) ----------
 
 def _rebuild_with_types(model, types):

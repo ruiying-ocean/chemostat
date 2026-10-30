@@ -30,14 +30,13 @@ class Chemostat:
         # per-morphotype FORAMECOGEM calibration (.zoo file row per type)
         self.foram_morphotype = data.get('foram_morphotype', {})
 
-        # solver options (optional section; fall back to LSODA defaults)
+        # solver options (optional section); step sizes are left to SciPy, since a
+        # min_step floor makes LSODA fail when tighter tolerances need smaller steps
         self.solver_opts = {
             'method': 'LSODA',
             'rtol': 1e-3,
             'atol': 1e-9,
             'max_step': 28.0,
-            'first_step': 0.01,
-            'min_step': 0.001,
             **data.get('solver', {}),
         }
 
@@ -370,15 +369,16 @@ class Chemostat:
         if F <= 0.0:
             return
         PR = 1.0 - np.exp(self.lamdaprey * F)
-        denom = np.sum(f_i * B ** 2)
-
-        # prey-switching weights: same value for every prey within a category
+        # prey-switching weights: same value for every prey within a category.
+        # Dividing by the sum of the category totals keeps each weight <= 1 despite rounding.
+        cats = (self.PFT_P_bool, self.PFT_Z_bool, self.PFT_F_bool)
+        cat_sum = [np.sum(f_i[c] * B[c] ** 2) for c in cats]
+        denom = sum(cat_sum)
+        if denom <= 0.0:  # prey biomass so small that B**2 underflows
+            return
         pref = np.zeros(self.n_pft)
-        pref[self.PFT_P_bool] = np.sum(f_i[self.PFT_P_bool] * B[self.PFT_P_bool] ** 2) / denom
-        pref[self.PFT_Z_bool] = np.sum(f_i[self.PFT_Z_bool] * B[self.PFT_Z_bool] ** 2) / denom
-        pref[self.PFT_F_bool] = np.sum(f_i[self.PFT_F_bool] * B[self.PFT_F_bool] ** 2) / denom
-        if np.any(pref > 1.0):
-            raise ValueError('pref>1, this should not happen')
+        for c, s in zip(cats, cat_sum):
+            pref[c] = s / denom
 
         # foram prey ignore the refuge term
         pr_eff = np.where(self.PFT_F_bool, 1.0, PR)
