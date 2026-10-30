@@ -53,6 +53,9 @@ foram_hetero_cost = 0.35
 ## calcification as a share of max growth (not in FORAMECOGEM, which uses calcite_respir; 0 = off)
 foram_growth_cost = 0.0          # all forams
 foram_spinose_growth_cost = 0.0  # spinose forams, in place of foram_growth_cost
+## foram Q10 by symbiont trait (not in FORAMECOGEM; unset = shared curve, Q10 = exp(10*R) = 1.65)
+# foram_Q10 = 1.5           # barren forams
+# foram_symbiont_Q10 = 3.0  # symbiont-bearing forams
 ## spine mechanism (applies to bs, ss): pp_opt and pp_sig scaled by spine_scale^1 (Fortran uses ^3, a known bug)
 foram_spine_scale = 3.5
 

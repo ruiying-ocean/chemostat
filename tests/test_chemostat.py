@@ -236,6 +236,33 @@ def test_foram_growth_cost_lowers_max_growth(model):
     assert np.allclose(model.mumax[~F], mumax0[~F])
 
 
+def test_foram_q10_set_by_symbiont_trait(model):
+    """Barren forams take foram_Q10, symbiont-bearing forams foram_symbiont_Q10; others keep R."""
+    F = model.PFT_F_bool
+    assert np.allclose(model.R_pft, model.R)  # unset = shared curve
+    model.foram_Q10, model.foram_symbiont_Q10 = 1.5, 3.0
+    model._assign_plank_par()
+    expected = np.where(model.is_symbiont[F], np.log(3.0), np.log(1.5)) / 10
+    assert np.allclose(model.R_pft[F], expected)
+    assert np.allclose(model.R_pft[~F], model.R)
+
+
+def test_diff_eqn_applies_foram_q10(config_path):
+    """With a near-zero foram Q10 at T_ref + 10 C, a foram alone with phyto neither grazes nor takes up N."""
+    m = Chemostat(30.0, 2.5)
+    m.load_ecoconfig(str(config_path))
+    assert m.T - m.T_ref == pytest.approx(10.0)
+    m.foram_Q10 = m.foram_symbiont_Q10 = 1e-12
+    m._assign_plank_par()
+    for j in np.flatnonzero(m.PFT_F_bool):
+        y = np.zeros(m.n_pft + 1)
+        y[0] = 1.0
+        y[1:][m.PFT_P_bool] = 0.1
+        y[1 + j] = 0.1
+        dB = m.diff_eqn(y, 0.0)[1:]
+        assert dB[j] == pytest.approx(-(m.m[j] + m.K) * 0.1, abs=1e-12)
+
+
 def test_foram_calcite_respiration_added(model):
     """resp[F] = resp_p + per-morphotype calcite_respir; spinose pay more."""
     for j in np.flatnonzero(model.PFT_F_bool):
@@ -310,3 +337,4 @@ def test_diff_eqn_runs_without_nan(model):
     if ss_idx:
         # ss biomass change is nontrivial when zoo prey are present
         assert dydt[1 + ss_idx[0]] != 0.0
+

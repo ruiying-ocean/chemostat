@@ -53,6 +53,9 @@ foram_hetero_cost = 0.6   # tuned (FORAMECOGEM 0.35): lets ss hold warm, low-nit
 ## tuned: calcification cuts max growth instead of a per-day respiration (calcite_respir = 0 below)
 foram_growth_cost = 0.3          # all forams
 foram_spinose_growth_cost = 0.5  # spinose forams, in place of foram_growth_cost
+## tuned: foram Q10 by symbiont trait; other plankton keep the shared curve (Q10 1.65)
+foram_Q10 = 1.5           # barren forams (N. pachyderma respiration 1.48)
+foram_symbiont_Q10 = 3.0  # symbiont-bearing forams (Lombard et al. 2009 respiration 3.18)
 ## spine mechanism (applies to bs, ss): pp_opt and pp_sig scaled by spine_scale^1 (Fortran uses ^3, a known bug)
 foram_spine_scale = 3.5
 

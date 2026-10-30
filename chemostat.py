@@ -11,6 +11,9 @@ class Chemostat:
     # Spinose forams pay foram_spinose_growth_cost in place of foram_growth_cost.
     foram_growth_cost = 0.0
     foram_spinose_growth_cost = 0.0
+    # foram Q10 by symbiont trait (not in FORAMECOGEM); None = shared curve exp(R*(T-T_ref))
+    foram_Q10 = None
+    foram_symbiont_Q10 = None
     
     def __init__(self,temp,nutrient):  
         self.T = temp+273.15   # ambient water temperature in Kelvin
@@ -265,6 +268,13 @@ class Chemostat:
             if self.is_symbiont[i]:
                 self.Gmax[i] = self.Gmax[i] * self.foram_hetero_cost
 
+        # temperature slope per pft; forams may take their own Q10 by symbiont trait
+        self.R_pft = np.full(self.n_pft, float(self.R))
+        for i in np.flatnonzero(self.PFT_F_bool):
+            q10 = self.foram_symbiont_Q10 if self.is_symbiont[i] else self.foram_Q10
+            if q10 is not None:
+                self.R_pft[i] = np.log(q10) / 10.0
+
         # prey preference matrix
         for jpred in range(self.n_pft):
             if self.PFT_P_bool[jpred]:
@@ -367,7 +377,7 @@ class Chemostat:
         out = np.zeros(self.n_pft)
         light = np.where(self.is_symbiont, self.gamma_l_symbiont, self.gamma_l)
         u = self.can_uptake_bool
-        out[u] = light[u] * gamma_T * self.mumax[u] * N / (self.kN[u] + N) * B[u]
+        out[u] = light[u] * gamma_T[u] * self.mumax[u] * N / (self.kN[u] + N) * B[u]
         return out
 
     def _zoo_graze_one(self, i, B, gamma_T, dBdt):
@@ -430,15 +440,15 @@ class Chemostat:
         N = y[0]
         B = y[1:self.n_pft + 1]
 
-        gamma_T = np.exp(self.R * (self.T - self.T_ref))
+        gamma_T = np.exp(self.R_pft * (self.T - self.T_ref))  # per pft
 
         Nuptake = self._phyto_uptake(N, B, gamma_T)
 
         dBdt = np.zeros(self.n_pft)
         for i in np.flatnonzero(self.PFT_Z_bool):
-            self._zoo_graze_one(i, B, gamma_T, dBdt)
+            self._zoo_graze_one(i, B, gamma_T[i], dBdt)
         for i in np.flatnonzero(self.PFT_F_bool):
-            self._foram_graze_one(i, B, gamma_T, dBdt)
+            self._foram_graze_one(i, B, gamma_T[i], dBdt)
 
         dBdt += Nuptake - B * self.m - self.K * B - B * self.resp * gamma_T
         # no clamp on dNdt: uptake -> 0 as N -> 0 keeps N >= 0, and a clamp would create nitrogen
