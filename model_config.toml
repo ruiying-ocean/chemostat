@@ -54,8 +54,8 @@ foram_hetero_cost = 0.35
 foram_spine_scale = 3.5
 
 ## simulation-specific configuration
-nday = 1000 ## running time
-save_freq = 1000 ## save frequency
+nday = 10000 ## running time (days); foram competition needs ~5000-10000 d to settle
+save_freq = 1000 ## number of output times over the run
 dt = 1 ## time step
 init_B = 1e-4 # initial biomass concentrations
 init_N = 1e-4 # initial nutrient concentration
@@ -67,7 +67,6 @@ atol = 1e-9
 max_step = 28.0
 
 [settings]
-foram_neg_dBdt = true
 cannibalism = false
 
 

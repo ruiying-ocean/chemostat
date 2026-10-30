@@ -212,7 +212,7 @@ class Chemostat:
         self.Gmax = self._cal_allom_trait(self.Gmax_a, self.Gmax_b, self.Vol)
         self.kNO3 = self._cal_allom_trait(self.kNO3_a, self.kNO3_b, self.Vol)
         self.qcarbon = self._cal_allom_trait(self.qcarbon_a, self.qcarbon_b, self.Vol)
-        self.qnitrogen = self.qcarbon * 106/16 ## redfield ratio
+        self.qnitrogen = self.qcarbon * 16 / 106  # N per cell (Redfield N:C); richness counts B > one cell per m^3
         ## pcmax = muinf in the paper
         self.pcmax = self._cal_allom_trait(self.pcmax_a, self.pcmax_b, self.Vol)
 
@@ -384,7 +384,6 @@ class Chemostat:
         pr_eff = np.where(self.PFT_F_bool, 1.0, PR)
 
         graze = self.Gmax[i] * gamma_T * f_i * B / (F + self.knprey) * pr_eff * pref
-        graze = np.maximum(graze, 0.0)
 
         dBdt[i] += np.sum(graze) * B[i] * self.lamda
         dBdt -= graze * B[i]
@@ -406,21 +405,20 @@ class Chemostat:
         PR = 1.0 - np.exp(self.lamdaprey * F_total)
 
         ns = self.foram_ns[i]
-        # B can dip slightly negative during ODE internal steps; (-x)**ns with float ns
-        # returns NaN. Clip to zero before raising to the switching exponent.
-        food_ns = (f_i * np.maximum(B, 0.0)) ** ns
+        food_ns = (f_i * B) ** ns  # B >= 0 (floored in diff_eqn), so a float ns is safe
         W = np.sum(food_ns)
         if W <= 0.0:
             return
 
         total_rate = self.Gmax[i] * gamma_T * F_total / (F_total + self.knprey) * PR
         graze = total_rate * food_ns / W
-        graze = np.maximum(graze, 0.0)
         dBdt[i] += np.sum(graze) * B[i] * self.lamda
         dBdt -= graze * B[i]
 
     def diff_eqn(self, y, t):
-        """ODE RHS fed to odeint. y = [N, B_0, ..., B_{n_pft-1}]; returns dy/dt."""
+        """ODE RHS fed to solve_ivp. y = [N, B_0, ..., B_{n_pft-1}]; returns dy/dt."""
+        # the solver can overshoot slightly below zero; rates from negative values run away
+        y = np.maximum(y, 0.0)
         N = y[0]
         B = y[1:self.n_pft + 1]
 
@@ -437,10 +435,6 @@ class Chemostat:
         dBdt += Nuptake - B * self.m - self.K * B - B * self.resp * gamma_T
         # no clamp on dNdt: uptake -> 0 as N -> 0 keeps N >= 0, and a clamp would create nitrogen
         dNdt = self.K * (self.source_N - N) - np.sum(Nuptake)
-
-        ## foram can't lose biomass (kept for parity with the original code)
-        if not self.foram_neg_dBdt:
-            dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
 
         return np.append(dNdt, dBdt)
 

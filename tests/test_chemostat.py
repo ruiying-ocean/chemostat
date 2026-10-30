@@ -152,6 +152,26 @@ def test_zoo_grazing_survives_rounding_when_one_prey_category_dominates(model):
         loss = -dBdt[np.arange(model.n_pft) != i].sum()
         assert dBdt[i] == pytest.approx(loss * model.lamda)
 
+
+def test_diff_eqn_treats_negative_state_as_zero(model):
+    """Solver overshoots below zero must not drive the rates: a negative predator would otherwise
+    'eat' negatively, push itself further negative and pump its prey up without bound."""
+    nP = model.n_phytoplankton
+    y = np.zeros(1 + model.n_pft)
+    y[0] = 1.0
+    y[1:1 + nP] = 0.2           # phyto prey
+    y[1 + nP + 10] = 0.05       # a positive zoo grazer
+    y[1 + 3] = 0.0              # this phyto is zero in the reference state...
+    y_neg = y.copy()
+    y_neg[1 + nP + 5] = -0.01   # a zoo grazer overshot below zero
+    y_neg[1 + 3] = -1e-6        # ...and overshot below zero here
+    expected = model.diff_eqn(y, 0.0)
+    assert model.diff_eqn(y_neg, 0.0) == pytest.approx(expected)
+
+    y0 = y.copy(); y0[0] = 0.0
+    y0_neg = y.copy(); y0_neg[0] = -1e-4  # nitrate overshot below zero
+    assert model.diff_eqn(y0_neg, 0.0)[1:] == pytest.approx(model.diff_eqn(y0, 0.0)[1:])
+
 # ---------- foram morphotype tests (symbiotic / spinose port from ECOGEM) ----------
 
 def _rebuild_with_types(model, types):
