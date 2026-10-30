@@ -7,6 +7,10 @@ class Chemostat:
     """
     A theoretical size-based model of plankton in a chemostat, adapted from Grigoratou et al. 2019 BG.
     """
+    # calcification as a share of foram max growth (not in FORAMECOGEM; 0 = off).
+    # Spinose forams pay foram_spinose_growth_cost in place of foram_growth_cost.
+    foram_growth_cost = 0.0
+    foram_spinose_growth_cost = 0.0
     
     def __init__(self,temp,nutrient):  
         self.T = temp+273.15   # ambient water temperature in Kelvin
@@ -252,6 +256,10 @@ class Chemostat:
                 self.m[i]    = self.m[i] * self.cal_pm
                 # extra respiration cost for building calcite test (col 10) — spinose pay more
                 self.resp[i] = self.resp[i] + self.foram_calc_resp[i]
+                # calcification cuts max growth: grazing and symbiont uptake alike
+                keep = 1.0 - (self.foram_spinose_growth_cost if self.is_spinose[i] else self.foram_growth_cost)
+                self.Gmax[i] *= keep
+                self.mumax[i] *= keep
             # symbiont-bearing forams pay an additional heterotrophic cost
             # (ecogem_data.f90:558 — heterotrophy *= symbiont_hetero_cost for sn/ss)
             if self.is_symbiont[i]:

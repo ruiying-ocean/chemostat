@@ -50,6 +50,9 @@ cal_pg = 0.8   ## foram palatability to other grazers (col 8 of FORAMECOGEM.zoo)
 foram_symbiont_esd_scale = 0.01  # eg_foram_symbiont_esd_scale (Cenozoic.foram.2024 configs)
 foram_auto_cost = 0.04
 foram_hetero_cost = 0.35
+## calcification as a share of max growth (not in FORAMECOGEM, which uses calcite_respir; 0 = off)
+foram_growth_cost = 0.0          # all forams
+foram_spinose_growth_cost = 0.0  # spinose forams, in place of foram_growth_cost
 ## spine mechanism (applies to bs, ss): pp_opt and pp_sig scaled by spine_scale^1 (Fortran uses ^3, a known bug)
 foram_spine_scale = 3.5
 

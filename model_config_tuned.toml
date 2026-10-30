@@ -50,6 +50,9 @@ cal_pg = 0.8   ## foram palatability to other grazers (col 8 of FORAMECOGEM.zoo)
 foram_symbiont_esd_scale = 0.01  # eg_foram_symbiont_esd_scale (Cenozoic.foram.2024 configs)
 foram_auto_cost = 0.04
 foram_hetero_cost = 0.6   # tuned (FORAMECOGEM 0.35): lets ss hold warm, low-nitrate water
+## tuned: calcification cuts max growth instead of a per-day respiration (calcite_respir = 0 below)
+foram_growth_cost = 0.3          # all forams
+foram_spinose_growth_cost = 0.5  # spinose forams, in place of foram_growth_cost
 ## spine mechanism (applies to bs, ss): pp_opt and pp_sig scaled by spine_scale^1 (Fortran uses ^3, a known bug)
 foram_spine_scale = 3.5
 
@@ -90,32 +93,33 @@ esd_foram  = [200.0, 200.0, 300.0, 300.0]
 type_foram = ['bn',  'bs',  'sn',  'ss']
 
 ## per-morphotype calibration from FORAMECOGEM 2P3D2E4Z4F.zoo (cols 02, 03, 06, 09, 10)
+## tuned: calcite_respir (col 10) = 0; the cost moves to foram_growth_cost above. A per-day cost
+## starves types where food is scarce and, being temperature-scaled, made spines look cheap in cold water.
 [foram_morphotype.bn]
 herbivory         = true
 carnivory         = false
 ns                = 1.0   # passive feeding (no prey switching)
 growthcost_factor = 1.3
-calcite_respir    = 0.02
+calcite_respir    = 0.0   # tuned: replaced by foram_growth_cost
 
 [foram_morphotype.bs]
 herbivory         = true
 carnivory         = false
 ns                = 5.0   # strong prey switching
 growthcost_factor = 1.0
-calcite_respir    = 0.045 # higher respiration: cost of building spines
+calcite_respir    = 0.0   # tuned: replaced by foram_growth_cost
 
 [foram_morphotype.sn]
 herbivory         = true
 carnivory         = false
 ns                = 1.0
 growthcost_factor = 1.3
-calcite_respir    = 0.02
+calcite_respir    = 0.0   # tuned: replaced by foram_growth_cost
 
 [foram_morphotype.ss]
 herbivory         = false  # ss is the only carnivore: eats zooplankton, not phyto
 carnivory         = true
 ns                = 5.0
 growthcost_factor = 1.0
-calcite_respir    = 0.045 # higher respiration: cost of building spines
-
+calcite_respir    = 0.0   # tuned: replaced by foram_growth_cost
 

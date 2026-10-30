@@ -223,6 +223,19 @@ def test_foram_prey_switching_raises_kernel_times_biomass_to_ns(model):
     assert dBdt[j] == pytest.approx(graze.sum() * B[j] * model.lamda)
 
 
+def test_foram_growth_cost_lowers_max_growth(model):
+    """Calcification cuts foram max growth (grazing and symbiont uptake); spinose pay their own share."""
+    F = model.PFT_F_bool
+    Gmax0, mumax0 = model.Gmax.copy(), model.mumax.copy()
+    model.foram_growth_cost, model.foram_spinose_growth_cost = 0.2, 0.4
+    model._assign_plank_par()
+    keep = np.where(model.is_spinose[F], 0.6, 0.8)
+    assert np.allclose(model.Gmax[F], Gmax0[F] * keep)
+    assert np.allclose(model.mumax[F], mumax0[F] * keep)
+    assert np.allclose(model.Gmax[~F], Gmax0[~F])
+    assert np.allclose(model.mumax[~F], mumax0[~F])
+
+
 def test_foram_calcite_respiration_added(model):
     """resp[F] = resp_p + per-morphotype calcite_respir; spinose pay more."""
     for j in np.flatnonzero(model.PFT_F_bool):
