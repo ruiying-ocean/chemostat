@@ -123,6 +123,19 @@ def test_diff_eqn_single_phyto_only_grows_via_uptake(model):
     assert np.allclose(dydt[1:][others], 0.0)
 
 
+
+def test_diff_eqn_nitrate_falls_when_uptake_exceeds_supply(model):
+    """Nitrate is conserved: with N at the source level (no net dilution supply), uptake must draw N down."""
+    i = 5
+    N0 = model.source_N
+    y = np.zeros(1 + model.n_pft); y[0] = N0; y[1 + i] = 0.5
+    dydt = model.diff_eqn(y, 0.0)
+
+    gamma_T = np.exp(model.R * (model.T - model.T_ref))
+    uptake = model.gamma_l * gamma_T * model.mumax[i] * N0 / (model.kN[i] + N0) * 0.5
+    assert uptake > 0.0
+    assert dydt[0] == pytest.approx(-uptake)
+
 # ---------- foram morphotype tests (symbiotic / spinose port from ECOGEM) ----------
 
 def _rebuild_with_types(model, types):
@@ -193,6 +206,20 @@ def test_foram_symbiont_uptake_is_active_for_sn_ss(model):
     nonsym_F = np.array([j for j in np.flatnonzero(model.PFT_F_bool) if not model.is_symbiont[j]])
     assert np.allclose(model.mumax[nonsym_F], 0.0)
 
+
+
+def test_foram_symbiont_pcmax_uses_symbiont_diameter(model):
+    """Symbiont max photosynthesis follows the phyto size buckets at the symbiont's own diameter."""
+    for j in np.flatnonzero(model.is_symbiont):
+        d_sym = model.diameter[j] * model.foram_symbiont_esd_scale
+        v = 4.0 / 3.0 * np.pi * (d_sym * 0.5) ** 3
+        allom = lambda a, b: a * v ** b
+        Qmax, Qmin = allom(model.Qmax_a, model.Qmax_b), allom(model.Qmin_a, model.Qmin_b)
+        Vmax = allom(model.Vmax_a, model.Vmax_b)
+        pcmax = model._cal_pcmax_a(d_sym) * v ** model.pcmax_b
+        dQ = Qmax - Qmin
+        mumax = pcmax * Vmax * dQ / (Vmax * Qmax + pcmax * Qmin * dQ)
+        assert model.mumax[j] == pytest.approx(mumax * model.foram_auto_cost)
 
 def test_foram_spine_widens_prey_selection_kernel(model):
     """Spinose forams (bs, ss) at a given size graze across a much wider prey-size range."""

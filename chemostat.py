@@ -235,8 +235,9 @@ class Chemostat:
             dQ_s   = Qmax_s - Qmin_s
             Vmax_s = self._cal_allom_trait(self.Vmax_a, self.Vmax_b, auto_vol)
             kNO3_s = self._cal_allom_trait(self.kNO3_a, self.kNO3_b, auto_vol)
-            # symbiont auto_vol is tiny so its diameter falls in the smallest pcmax_a bucket
-            pcmax_s = 1.0 * auto_vol ** self.pcmax_b
+            # same size buckets as phytoplankton, at the symbiont's own diameter
+            pcmax_a_s = np.array([self._cal_pcmax_a(d) for d in self.diameter[sym] * self.foram_symbiont_esd_scale])
+            pcmax_s = pcmax_a_s * auto_vol ** self.pcmax_b
             self.mumax[sym] = self._cal_mumax(pcmax_s, Vmax_s, Qmax_s, Qmin_s, dQ_s) * self.foram_auto_cost
             self.kN[sym]    = self._cal_kN(pcmax_s, kNO3_s, Vmax_s, Qmax_s, Qmin_s, dQ_s)
 
@@ -434,9 +435,9 @@ class Chemostat:
             self._foram_graze_one(i, B, gamma_T, dBdt)
 
         dBdt += Nuptake - B * self.m - self.K * B - B * self.resp * gamma_T
+        # no clamp on dNdt: uptake -> 0 as N -> 0 keeps N >= 0, and a clamp would create nitrogen
         dNdt = self.K * (self.source_N - N) - np.sum(Nuptake)
 
-        dNdt = np.maximum(dNdt, 0)
         ## foram can't lose biomass (kept for parity with the original code)
         if not self.foram_neg_dBdt:
             dBdt[self.PFT_F_bool] = np.maximum(dBdt[self.PFT_F_bool], 1E-99)
