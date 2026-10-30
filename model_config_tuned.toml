@@ -1,0 +1,121 @@
+[parameters]
+### Temperature- Arrenhius-like equation (equation A6 from Appendix Ward et al 2012) ###
+R = 0.05  # temperature depedence, {no units}
+T_ref = 293.15  # Reference Temperature at which gama_T=1, 20oC {Kelvin}
+
+### Size-Dependent Parameters ###
+Qmax_a = 0.25
+Qmax_b = -0.13
+Qmin_a = 0.07
+Qmin_b = -0.17
+Gmax_a = 21.9
+Gmax_b = -0.16
+kNO3_a = 0.17
+kNO3_b = 0.27
+Vmax_a = 0.51
+Vmax_b = -0.27
+pcmax_b = -0.15
+mz_a = 0.05
+mz_b = -0.16
+qcarbon_a = 1.45e-11
+qcarbon_b = 0.88
+
+### Size-Indenpendent Parameters ###
+knprey=0.1051 ## half saturation const for grazing, mmol N m-3
+gamma_l = 0.1 #light limitation for phytoplankton (depth-averaged, from Ward et al. 2014)
+gamma_l_symbiont = 1.0 ## light availability for symbiont-bearing forams (sn, ss): they live
+                       ## in the photic zone, not depth-averaged. 1.0 = surface-light saturating.
+
+### other plankton parameters (from Ward et al., 2012;2014) ###
+mp = 0.02  # plankton mortality {day^-1}
+resp_p = 0.00 ## plankton respiration (d-1)
+lamdaprey = -1.0  # prey refure parameter {no units}
+## ECOGEM kernel (Ward et al. 2018) is diameter-based: theta and sigmas are in
+## log-diameter-ratio units. foram_spine_scale is also a diameter scaling, so we
+## apply spine_scale^1 (NOT FORAMECOGEM's buggy spine_scale^3) in chemostat.py.
+theta_opt = 10  # optimum predator:prey diameter ratio (FORAMECOGEM pp_opt_a)
+lamda = 0.7  # maximum assimilation efficiency
+sigma_z = 0.5 # zoo prey-selection kernel width (log-diameter-ratio units)
+n_dt = 2.0 # number of timesteps: redundant currently
+K = 0.01  # dilution rate k for plankton washed out and nutrient supply in
+
+### planktonic foraminifera's parameters (FORAMECOGEM canonical values) ###
+sigma_f = 2.0  ## foram prey-selection kernel width (col 5 pp_sig_a of FORAMECOGEM.zoo,
+               ## log-diameter-ratio units, ECOGEM convention)
+cal_pm = 0.7   ## foram mortality protection (col 7 of FORAMECOGEM.zoo)
+cal_pg = 0.8   ## foram palatability to other grazers (col 8 of FORAMECOGEM.zoo)
+
+### foram morphotype parameters (ported from ECOGEM FORAMECOGEM defaults) ###
+## symbiont mechanism (applies to sn, ss): autotrophic uptake using effective volume V*scale^3
+foram_symbiont_esd_scale = 0.01  # eg_foram_symbiont_esd_scale (Cenozoic.foram.2024 configs)
+foram_auto_cost = 0.04
+foram_hetero_cost = 0.6   # tuned (FORAMECOGEM 0.35): lets ss hold warm, low-nitrate water
+## spine mechanism (applies to bs, ss): pp_opt and pp_sig scaled by spine_scale^1 (Fortran uses ^3, a known bug)
+foram_spine_scale = 3.5
+
+## simulation-specific configuration
+nday = 10000 ## running time (days); foram competition needs ~5000-10000 d to settle
+save_freq = 1000 ## number of output times over the run
+dt = 1 ## time step
+init_B = 1e-4 # initial biomass concentrations
+init_N = 1e-4 # initial nutrient concentration
+
+[solver]
+method = "LSODA"        # one of: LSODA, BDF, Radau, RK45, RK23, DOP853
+rtol = 1e-3
+atol = 1e-9
+max_step = 28.0
+
+[settings]
+cannibalism = false
+
+
+esd_phytoplankton = [6.20400000e-01,   7.81655019e-01,   9.84823613e-01,   1.24080000e+00,
+    1.56331004e+00,   1.96964723e+00,   2.48160000e+00,   3.12662008e+00,
+    3.93929445e+00,   4.96320000e+00,   6.25324015e+00,   7.87858890e+00,
+    9.92640000e+00,   1.25064803e+01,   1.57571778e+01,   1.98528000e+01,
+    2.50129606e+01,   3.15143556e+01,   3.97056000e+01,   5.00259212e+01,
+    6.30287112e+01,   7.94112000e+01,   1.00051842e+02,   1.26057422e+02,
+    1.58822400e+02]
+esd_zooplankton = [6.25324015e+00,   7.87858890e+00,   9.92640000e+00,
+    1.25064803e+01,   1.57571778e+01,   1.98528000e+01,   2.50129606e+01,
+    3.15143556e+01,   3.97056000e+01,   5.00259212e+01,   6.30287112e+01,
+    7.94112000e+01,   1.00051842e+02,   1.26057422e+02,   1.58822400e+02,
+    2.00103685e+02,   2.52114845e+02,   3.17644800e+02,   4.00207370e+02,
+    5.04229690e+02,   6.35289600e+02,   8.00414740e+02,   1.00845938e+03,
+    1.27057920e+03,1.60082948e+03]
+## canonical FORAMECOGEM layout (8P7Z4F.eco): one representative size per morphotype.
+## bn=N. pachyderma-like, bs=G. bulloides-like, sn=N. dutertrei-like, ss=G. ruber/T. sacculifer-like.
+esd_foram  = [200.0, 200.0, 300.0, 300.0]
+type_foram = ['bn',  'bs',  'sn',  'ss']
+
+## per-morphotype calibration from FORAMECOGEM 2P3D2E4Z4F.zoo (cols 02, 03, 06, 09, 10)
+[foram_morphotype.bn]
+herbivory         = true
+carnivory         = false
+ns                = 1.0   # passive feeding (no prey switching)
+growthcost_factor = 1.3
+calcite_respir    = 0.02
+
+[foram_morphotype.bs]
+herbivory         = true
+carnivory         = false
+ns                = 5.0   # strong prey switching
+growthcost_factor = 1.0
+calcite_respir    = 0.045 # higher respiration: cost of building spines
+
+[foram_morphotype.sn]
+herbivory         = true
+carnivory         = false
+ns                = 1.0
+growthcost_factor = 1.3
+calcite_respir    = 0.02
+
+[foram_morphotype.ss]
+herbivory         = false  # ss is the only carnivore: eats zooplankton, not phyto
+carnivory         = true
+ns                = 5.0
+growthcost_factor = 1.0
+calcite_respir    = 0.045 # higher respiration: cost of building spines
+
+
