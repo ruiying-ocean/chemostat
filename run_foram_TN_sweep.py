@@ -21,6 +21,18 @@ MORPHO_COLORS = {'bn': '#1f77b4', 'bs': '#2ca02c', 'sn': '#ff7f0e', 'ss': '#d627
 # total foram biomass below 1% of init_B counts as extinct: fractions there are solver noise
 EXTINCT = 1e-6
 
+# Observed surface nitrate (umol/kg) by temperature: WOA18 annual 1-degree means, 1st-99th
+# percentile of cells within +-2.5 C of each SST. A supply outside this range has no ocean analogue.
+# shortcut: hard-coded from ~/WOA18 (n00, t00); recompute to sweep outside 5-30 C (np.interp clamps there).
+OCEAN_T = np.array([5.0, 10.0, 15.0, 20.0, 25.0, 30.0])
+OCEAN_NO3_LO = np.array([1.60, 1.18, 0.04, 0.03, 0.04, 0.04])
+OCEAN_NO3_HI = np.array([25.06, 16.12, 8.75, 6.16, 7.40, 3.41])
+
+
+def in_ocean(temp: float, nutrient: float) -> bool:
+    return np.interp(temp, OCEAN_T, OCEAN_NO3_LO) <= nutrient <= np.interp(temp, OCEAN_T, OCEAN_NO3_HI)
+
+
 MORPHO_LABELS = {
     'bn': 'bn (barren, non-spinose)',
     'bs': 'bs (barren, spinose)',
@@ -63,6 +75,11 @@ def main() -> None:
 
     for i, T in enumerate(temps):
         for j, N in enumerate(nutrients):
+            if not in_ocean(T, N):
+                totals[i, j] = np.nan
+                for mt in MORPHOTYPES:
+                    fracs[mt][i, j] = np.nan
+                continue
             print(f'  T={T:>4.1f} °C, source_N={N:>5.2f} ...', end=' ')
             r = run_one(T, N, config)
             totals[i, j] = r['total_F']
@@ -85,6 +102,12 @@ def plot_results(temps, nutrients, totals, fracs, save_path, config):
         ax.set_xlabel('source N (mmol N m$^{-3}$)')
         ax.set_ylabel('Temperature (°C)')
 
+    outside = np.isnan(totals)  # cells skipped as having no ocean analogue
+
+    def hatch_outside(ax):
+        for i, j in zip(*np.nonzero(outside)):
+            ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, hatch='///', ec='0.75', lw=0))
+
     def imshow(ax, data, title, cmap='viridis', vmin=None, vmax=None, fmt='{:.2f}'):
         im = ax.imshow(data, origin='lower', aspect='auto',
                        cmap=cmap, vmin=vmin, vmax=vmax,
@@ -99,6 +122,7 @@ def plot_results(temps, nutrients, totals, fracs, save_path, config):
                 ax.text(j, i, fmt.format(data[i, j]),
                         ha='center', va='center', fontsize=7,
                         color='white' if cmap == 'viridis' and data[i, j] < (vmax or data.max()) * 0.6 else 'black')
+        hatch_outside(ax)
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
     # one heatmap per morphotype (fractional)
@@ -116,18 +140,20 @@ def plot_results(temps, nutrients, totals, fracs, save_path, config):
     ax = axs[1, 2]
     stacked = np.stack([fracs[mt] for mt in MORPHOTYPES], axis=-1)
     dominant = np.argmax(np.nan_to_num(stacked), axis=-1).astype(float)
-    dominant[totals < EXTINCT] = np.nan  # no winner where forams are extinct
+    dominant[~(totals >= EXTINCT)] = np.nan  # no winner where forams are extinct or the cell was skipped
     cmap = ListedColormap([MORPHO_COLORS[mt] for mt in MORPHOTYPES])
     norm = BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5], cmap.N)
     im = ax.imshow(dominant, origin='lower', aspect='auto',
                    cmap=cmap, norm=norm, interpolation='nearest')
     label_axes(ax)
+    hatch_outside(ax)
     ax.set_title('Dominant morphotype')
     cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, ticks=[0, 1, 2, 3])
     cbar.ax.set_yticklabels(list(MORPHOTYPES))
 
-    fig.suptitle(f'Foram morphotype response to temperature and nutrient supply ({config})',
-                 fontsize=13, fontweight='bold')
+    fig.suptitle(f'Foram morphotype response to temperature and nutrient supply ({config})\n'
+                 'hatched: no ocean analogue (supply outside WOA18 surface nitrate, 1st-99th percentile)',
+                 fontsize=12, fontweight='bold')
     fig.savefig(save_path, dpi=150)
     print(f'saved figure: {save_path}')
 

@@ -338,3 +338,10 @@ def test_diff_eqn_runs_without_nan(model):
         # ss biomass change is nontrivial when zoo prey are present
         assert dydt[1 + ss_idx[0]] != 0.0
 
+
+def test_sweep_skips_cells_without_ocean_analogue():
+    """The T x N sweep keeps only supply levels inside the observed surface-nitrate range at that temperature."""
+    from run_foram_TN_sweep import in_ocean
+    assert not in_ocean(30.0, 10.0)  # warm water this nutrient-rich does not exist
+    assert not in_ocean(5.0, 0.25)   # nor cold water this nutrient-poor
+    assert in_ocean(30.0, 0.5) and in_ocean(5.0, 10.0)
