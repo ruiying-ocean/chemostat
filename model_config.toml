@@ -32,7 +32,7 @@ resp_p = 0.00 ## plankton respiration (d-1)
 lamdaprey = -1.0  # prey refure parameter {no units}
 ## ECOGEM kernel (Ward et al. 2018) is diameter-based: theta and sigmas are in
 ## log-diameter-ratio units. foram_spine_scale is also a diameter scaling, so we
-## apply spine_scale^1 (NOT FORAMECOGEM's buggy spine_scale^3) in chemostat.py.
+## apply spine_scale^1 (NOT FORAMECOGEM's buggy spine_scale^3) in chemostat/traits.py.
 theta_opt = 10  # optimum predator:prey diameter ratio (FORAMECOGEM pp_opt_a)
 lamda = 0.7  # maximum assimilation efficiency
 sigma_z = 0.5 # zoo prey-selection kernel width (log-diameter-ratio units)
