@@ -47,10 +47,10 @@ cal_pg = 0.8   ## foram palatability to other grazers (col 8 of FORAMECOGEM.zoo)
 
 ### foram morphotype parameters (ported from ECOGEM FORAMECOGEM defaults) ###
 ## symbiont mechanism (applies to sn, ss): autotrophic uptake using effective volume V*scale^3
-foram_symbiont_esd_scale = 0.01
+foram_symbiont_esd_scale = 0.01  # eg_foram_symbiont_esd_scale (Cenozoic.foram.2024 configs)
 foram_auto_cost = 0.04
 foram_hetero_cost = 0.35
-## spine mechanism (applies to bs, ss): prey-selection kernel scaled by scale^3
+## spine mechanism (applies to bs, ss): pp_opt and pp_sig scaled by spine_scale^1 (Fortran uses ^3, a known bug)
 foram_spine_scale = 3.5
 
 ## simulation-specific configuration
@@ -92,13 +92,13 @@ esd_zooplankton = [6.25324015e+00,   7.87858890e+00,   9.92640000e+00,
 esd_foram  = [200.0, 200.0, 300.0, 300.0]
 type_foram = ['bn',  'bs',  'sn',  'ss']
 
-## per-morphotype calibration from FORAMECOGEM.zoo (cols 02, 03, 06, 09, 10)
+## per-morphotype calibration from FORAMECOGEM 2P3D2E4Z4F.zoo (cols 02, 03, 06, 09, 10)
 [foram_morphotype.bn]
 herbivory         = true
 carnivory         = false
 ns                = 1.0   # passive feeding (no prey switching)
-growthcost_factor = 1.0
-calcite_respir    = 0.02  # uniform calcite respiration across morphotypes
+growthcost_factor = 1.3
+calcite_respir    = 0.02
 
 [foram_morphotype.bs]
 herbivory         = true
@@ -111,7 +111,7 @@ calcite_respir    = 0.045 # higher respiration: cost of building spines
 herbivory         = true
 carnivory         = false
 ns                = 1.0
-growthcost_factor = 1.0
+growthcost_factor = 1.3
 calcite_respir    = 0.02
 
 [foram_morphotype.ss]

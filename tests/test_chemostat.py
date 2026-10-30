@@ -137,9 +137,9 @@ def _rebuild_with_types(model, types):
 def test_foram_morphotype_arrays_match_config(model):
     """Each foram pft inherits ns / growthcost / calcite_respir / feeding mode from its morphotype."""
     expected = {
-        'bn': dict(ns=1.0, growthc=1.0, calc=0.02,  herb=True,  carn=False),
+        'bn': dict(ns=1.0, growthc=1.3, calc=0.02,  herb=True,  carn=False),
         'bs': dict(ns=5.0, growthc=1.0, calc=0.045, herb=True,  carn=False),
-        'sn': dict(ns=1.0, growthc=1.0, calc=0.02,  herb=True,  carn=False),
+        'sn': dict(ns=1.0, growthc=1.3, calc=0.02,  herb=True,  carn=False),
         'ss': dict(ns=5.0, growthc=1.0, calc=0.045, herb=False, carn=True),
     }
     for j in np.flatnonzero(model.PFT_F_bool):
@@ -149,6 +149,29 @@ def test_foram_morphotype_arrays_match_config(model):
         assert model.foram_calc_resp[j] == pytest.approx(e['calc'])
         assert bool(model.is_herbivore[j]) is e['herb']
         assert bool(model.is_carnivore[j]) is e['carn']
+
+
+def test_foram_prey_switching_raises_kernel_times_biomass_to_ns(model):
+    """Foram switching weight is (f_j*B_j)^ns / sum_k (f_k*B_k)^ns, as in ECOGEM's food_ns."""
+    j = np.flatnonzero(model.PFT_F_bool)[0]
+    model.foram_ns[j] = 5.0
+    f_j = model.f[:, j]
+    # two phyto prey the foram can eat, with different kernel values
+    prey = [p for p in np.flatnonzero(model.PFT_P_bool) if f_j[p] > 0.05][:2]
+    assert len(prey) == 2 and f_j[prey[0]] != pytest.approx(f_j[prey[1]])
+    B = np.zeros(model.n_pft)
+    B[prey] = 0.3
+    B[j] = 0.01
+    gamma_T = np.exp(model.R * (model.T - model.T_ref))
+    dBdt = np.zeros(model.n_pft)
+    model._foram_graze_one(j, B, gamma_T, dBdt)
+
+    F = np.sum(f_j * B)
+    total = model.Gmax[j] * gamma_T * F / (F + model.knprey) * (1.0 - np.exp(model.lamdaprey * F))
+    w = (f_j[prey] * B[prey]) ** 5.0
+    graze = total * w / w.sum()
+    assert dBdt[prey] == pytest.approx(-graze * B[j])
+    assert dBdt[j] == pytest.approx(graze.sum() * B[j] * model.lamda)
 
 
 def test_foram_calcite_respiration_added(model):

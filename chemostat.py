@@ -392,10 +392,11 @@ class Chemostat:
         """Accumulate grazing contribution of foram predator i into dBdt.
 
         Generalised to per-morphotype prey-switching exponent ns (FORAMECOGEM.zoo col 06):
-            graze_j = total_rate * (f_j * B_j^ns) / sum_k(f_k * B_k^ns)
+            graze_j = total_rate * (f_j * B_j)^ns / sum_k (f_k * B_k)^ns
         where total_rate is the Holling type II response on linearly weighted prey.
+        The kernel sits inside the power, as in ECOGEM's food_ns (ecogem_box.f90 grazing).
         ns=1 reproduces the legacy (no-switching) formulation; ns=5 (bs, ss) concentrates
-        feeding on the dominant prey within the predator's allowed prey set.
+        feeding on the best-matched, most abundant prey within the allowed prey set.
         """
         f_i = self.f[:, i]
         F_total = np.sum(f_i * B)
@@ -406,14 +407,13 @@ class Chemostat:
         ns = self.foram_ns[i]
         # B can dip slightly negative during ODE internal steps; (-x)**ns with float ns
         # returns NaN. Clip to zero before raising to the switching exponent.
-        B_pos = np.maximum(B, 0.0)
-        B_ns = B_pos ** ns
-        W = np.sum(f_i * B_ns)
+        food_ns = (f_i * np.maximum(B, 0.0)) ** ns
+        W = np.sum(food_ns)
         if W <= 0.0:
             return
 
         total_rate = self.Gmax[i] * gamma_T * F_total / (F_total + self.knprey) * PR
-        graze = total_rate * (f_i * B_ns) / W
+        graze = total_rate * food_ns / W
         graze = np.maximum(graze, 0.0)
         dBdt[i] += np.sum(graze) * B[i] * self.lamda
         dBdt -= graze * B[i]
